@@ -1,8 +1,4 @@
 //Sample program at client side for echo transmit-receive - CSS 432 - Autumn 2022
-
-
-
-
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -13,9 +9,6 @@
 #include <string.h>         // for strerror function.
 #include <signal.h>         // for the signal handler registration.
 #include <unistd.h>
-
-
-
 
 #define SERV_UDP_PORT 51542 //REPLACE WITH YOUR PORT NUMBER
 #define SERV_HOST_ADDR "10.158.82.33" //REPLACE WITH SERVER IP ADDRESS
@@ -170,26 +163,3 @@ char    *argv[];
 	close(sockfd);
 	exit(0);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
