@@ -1,5 +1,6 @@
 //for system calls, please refer to the MAN pages help in Linux 
 //sample echo tensmit receive program over udp - CSS432 - Autumn 2022
+// STEP 1: TFTP - sending less than 512 sized packet
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -12,11 +13,11 @@
 #include <unistd.h>
 
 #define SERV_UDP_PORT   51542 // REPLACE WITH YOUR PORT NUMBER
-
+#define MAXSIZE 512  // Size of maximum packet size to receive
 
 char *progname;
 
-/* Size of maximum message to received.                            */
+/* Size of maximum packet to received.                            */
 
 #define MAXMESG 2048
 
@@ -49,11 +50,11 @@ int            sockfd;
 
 		clilen = sizeof(struct sockaddr);
 
-/* Receive data on socket sockfd, up to a maximum of MAXMESG       */
+/* Receive data on socket sockfd, up to a maximum of MAXSIZE - 1   */
 /* bytes, and store them in mesg. The sender's address is stored   */
 /* in pcli_addr and the structure's size is stored in clilen.      */
 		
-		n = recvfrom(sockfd, mesg, MAXMESG, 0, &pcli_addr, &clilen);
+		n = recvfrom(sockfd, mesg, MAXSIZE - 1, 0, &pcli_addr, &clilen);
 		
 /* n holds now the number of received bytes, or a negative number  */
 /* to show an error condition. Notice how we use progname to label */
