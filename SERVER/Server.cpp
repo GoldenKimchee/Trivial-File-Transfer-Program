@@ -14,6 +14,11 @@
 
 #define SERV_UDP_PORT   51542 // REPLACE WITH YOUR PORT NUMBER
 #define MAXSIZE 512  // Size of maximum packet size to receive
+#define OP_RRQ 1
+#define OP_WRQ 2
+#define OP_DATA 3
+#define OP_ACK 4
+#define OP_ERROR 5
 
 char *progname;
 
@@ -53,8 +58,14 @@ int            sockfd;
 /* Receive data on socket sockfd, up to a maximum of MAXSIZE - 1   */
 /* bytes, and store them in mesg. The sender's address is stored   */
 /* in pcli_addr and the structure's size is stored in clilen.      */
-		
+
+// Since maximum is defined, we assume clilen will always be max of MAXSIZE - 1
+
 		n = recvfrom(sockfd, mesg, MAXSIZE - 1, 0, &pcli_addr, &clilen);
+
+		// After recieving data packet, we turn it to our system's appropriate
+		// little or big endian system
+		mesg.ntohs();
 		
 /* n holds now the number of received bytes, or a negative number  */
 /* to show an error condition. Notice how we use progname to label */
@@ -65,6 +76,20 @@ int            sockfd;
 			 printf("%s: recvfrom error\n",progname);
 			 exit(3);
 			}
+
+	// Check type of message from client to the server
+	// Get first two bytes of message; tells us what operation to do
+	uint8_t opCode[2] = { mesg[0], mesg[1] };
+
+	if (opCode[1] == OP_ERROR) {
+		// packet has some error...
+	} else if (opCode[1] == OP_DATA) {
+		uint8_t blockNumber = { mesg[2], mesg[3] };
+		
+	}
+	// Send the requested data back
+	// Create a byte array of size no more than MAXSIZE
+	uint8_t message[MAXSIZE - 1];
 
 /* Note that if you are using timeouts, n<0 may not mean an error, */
 /* but that the call was interrupted by a signal. To see what      */
