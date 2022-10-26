@@ -9,10 +9,16 @@
 #include <string.h>         // for strerror function.
 #include <signal.h>         // for the signal handler registration.
 #include <unistd.h>
+#include <fstream>
 
 #define SERV_UDP_PORT 51542 //REPLACE WITH YOUR PORT NUMBER
 #define SERV_HOST_ADDR "10.158.82.33" //REPLACE WITH SERVER IP ADDRESS
-
+const static unsigned short OP_RRQ = 1;
+const static unsigned short OP_WRQ = 2;
+const static unsigned short OP_DATA = 3;
+const static unsigned short OP_ACK = 4;
+const static unsigned short OP_ERROR = 5;
+const static int DATA_OFFSET = 4;
 
 /* A pointer to the name of this program for error reporting.      */
 
@@ -21,6 +27,12 @@ char *progname;
 /* Size of maximum message to send.                                */
 
 #define MAXLINE 512
+
+/* Global variable to hold block number */
+unsigned short blockNumber = 0;
+
+/* Max length of data is 512 bytes, 2 bytes op code, 2 bytes block number. total 516 bytes. */
+const static int MAX_BUFFER_SIZE = 516;
 
 /* The dg_cli function reads lines from the terminal, sends them   */
 /* to the echo server pointed to by pserv_addr, and prints to the  */
@@ -150,6 +162,40 @@ char    *argv[];
 		 printf("%s: can't bind local address\n",progname);
 		 exit(2);
 		}
+	
+	if (argv[1] == '-r') {
+		//send out a read request
+		//recv data block 1
+	}
+	else if (argv[1] == '-w') {
+		//send out write request
+		//recv ack#1
+		//send out data block #1
+		char buffer[MAX_BUFFER_SIZE];
+		bzero(buffer, sizeof(buffer));
+		unsigned short *opCodePtr = (unsigned short*) buffer;
+		*opCodePtr = htons(OP_DATA);
+		*opCodePtr = OP_CODE_DATA;
+		opCodePtr++;
+    // Have block pointer point to same as op pointer; the 3rd byte of buffer
+		unsigned short *blockNumPtr = opCodePtr;
+		// Fill in the block byte (from 3rd to 4th byte) with block number
+		*blockNumPtr = htons(blockNumber);
+		blockNumber++;
+		char *fileData = buffer + DATA_OFFSET;
+		std::ifstream in(argv[2]);
+		std::string contents((std::istreambuf_iterator<char>(in)), 
+    	std::istreambuf_iterator<char>());
+		char file[] = contents.c_str();
+		// use memcpy or bcopy, since it might not be a string.
+		strncpy (fileData, file, strlen(file));
+		if (sendto(sockfd, fileData, strlen(fileData), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != strlen(fileData))
+		{
+			printf("%s: sendto error on socket\n",progname);
+			exit(3);
+		}
+ 
+	}
 
 /* Call the main client loop. We need to pass the socket to use    */
 /* on the local endpoint, and the server's data that we already    */
