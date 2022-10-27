@@ -6,6 +6,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <string>
+#include <iostream>
 #include <stdlib.h>
 #include <errno.h>          // for retrieving the error number.
 #include <string.h>         // for strerror function.
@@ -86,7 +88,7 @@ int            sockfd;
 		unsigned short opCodeRcv = ntohs(*opCodePtr);
 		// if conditionals checking OP code to decide how to process remaining buffer array
 		if (opCodeRcv == OP_RRQ) { // Got read request
-		
+
 			// Analyze rrq packet
 			// Check filename which is a string, end of string is marked with 0
 			opCodePtr++;  // move to third byte
