@@ -28,6 +28,11 @@ unsigned short blockNumber = 0;
 /* Max length of data is 512 bytes, 2 bytes op code, 2 bytes block number. total 516 bytes. */
 const static int MAX_BUFFER_SIZE = 516;
 
+#define MAXLINE 512  // Actual data size
+
+// Global variable to keep track of file to create (in case client sents a write request)
+string writeToFile;
+
 /* Size of maximum packet to received.                            */
 
 #define MAXMESG 2048
@@ -81,6 +86,7 @@ int            sockfd;
 		unsigned short opCodeRcv = ntohs(*opCodePtr);
 		// if conditionals checking OP code to decide how to process remaining buffer array
 		if (opCodeRcv == OP_RRQ) { // Got read request
+		
 			// Analyze rrq packet
 			// Check filename which is a string, end of string is marked with 0
 			opCodePtr++;  // move to third byte
@@ -117,16 +123,45 @@ int            sockfd;
 				printf("%s: sendto error\n",progname);
 				exit(4);
 			}
+
 		}	else if (opCodeRcv == OP_ACK) {
 			// Increment the pointer to the third byte for block number 
 			opCodePtrRcv++;
 			// Create unsigned int pointer and assign the two bytes there to the unsigned int.
 			unsigned short *blockNumPtr = opCodePtrRcv
 			blockNumber = ntohs(*blockNumPtr) + 1; // update our block number
+
 		} else if (opCodeRcv == OP_WRQ) { // Got a write request. Client is wants to send server a data packet
-			//
-						// Create file?
-			snprintf(buffer, sizeof(buffer), "file_%d.txt", n);
+			// Check filename which is a string, end of string is marked with 0
+			opCodePtr++;  // move to third byte
+			char *a = opCodePtr; // Start getting char on third byte
+			int i = 0;
+			unsigned short *stringPtr = opCodePtr;
+			string filename = "";
+			while (stringPtr != 0) {
+				filename = filename + a[i]
+				i++;
+				stringPtr++;
+			}
+			writeToFile = filename; // Save name of file to write to
+			char ackBuffer[4];
+			bzero(ackBuffer, 4);			
+			// Pointer thats pointing to the start of the buffer array
+			unsigned short *opPtr = (unsigned short*) ackBuffer;
+			// convert from network order
+			*opPtr = htons(OP_ACK);
+			// pointer of op is pointing to start of the buffer array. fill in with op code data.
+			opPtr++; // increment by 1 (unsigned short = 2 bytes), so now pointing to 3rd byte.
+			
+			// Have block pointer point to same as op pointer; the 3rd byte of buffer
+			unsigned short *blockPtr = opPtr;
+			// Fill in the block byte (from 3rd to 4th byte) with block number
+			*blockPtr = htons(blockNumber);
+			if (sendto(sockfd, ackBuffer, 4, 0, &pcli_addr, clilen) != n) {
+				printf("%s: sendto error\n",progname);
+				exit(4);
+			}
+
 		}	else if (opCodeRcv == OP_DATA) {
 			// Process rest of buffer array like done so above:
 			// Increment the pointer to the third byte for block number 
@@ -140,34 +175,29 @@ int            sockfd;
 			char file[MAXLINE];
 			memcpy(file, fileData, sizeOf(buffer) - DATA_OFFSET);
 			// Do  strncpy (fileData, file, strlen(file));  but in the reverse direction. Copying from the byte buffer to the file.
-			ofstream output(argv[2]);
+			ofstream output(writeToFile);
 			for (int i = 0; i < sizeOf(buffer) - DATA_OFFSET; i++) {
 				ofstream << file[i];
 			}
+
+			char ackBuffer[4];
+			bzero(ackBuffer, 4);			
+			// Pointer thats pointing to the start of the buffer array
+			unsigned short *opPtr = (unsigned short*) ackBuffer;
+			// convert from network order
+			*opPtr = htons(OP_ACK);
+			// pointer of op is pointing to start of the buffer array. fill in with op code data.
+			opPtr++; // increment by 1 (unsigned short = 2 bytes), so now pointing to 3rd byte.
 			
-		}
-
-
-
-/* Note that if you are using timeouts, n<0 may not mean an error, */
-/* but that the call was interrupted by a signal. To see what      */
-/* happened, you have to look at the value of the system variable  */
-/* errno (defined in <errno.h>).                                   */
-
-/* Send the received data back to the sender. The same socket      */
-/* (sockfd) is used for the reverse direction, the buffer is mesg  */
-/* with size n (the number of bytes received) and the sender's     */
-/* address is as received in the previous call (pcli_addr with     */
-/* size clilen). 0 is an unused flag byte. This call returns the   */
-/* number of bytes sent, which differs from what we wanted in case */
-/* of an error. Again, the return value may signify an interrupt.  */
-
-// Sends the mesg array back to client
-		if (sendto(sockfd, mesg, n, 0, &pcli_addr, clilen) != n)
-			{
-			 printf("%s: sendto error\n",progname);
-			 exit(4);
+			// Have block pointer point to same as op pointer; the 3rd byte of buffer
+			unsigned short *blockPtr = opPtr;
+			// Fill in the block byte (from 3rd to 4th byte) with block number
+			*blockPtr = htons(blockNumber);
+			if (sendto(sockfd, ackBuffer, 4, 0, &pcli_addr, clilen) != n) {
+				printf("%s: sendto error\n",progname);
+				exit(4);
 			}
+		}
 	}
 }
 
