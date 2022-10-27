@@ -13,15 +13,19 @@
 #include <unistd.h>
 
 #define SERV_UDP_PORT   51542 // REPLACE WITH YOUR PORT NUMBER
-#define MAXSIZE 512  // Size of maximum packet size to receive
-#define OP_RRQ 1
-#define OP_WRQ 2
-const static unsigned short OP_CODE_DATA = 3;
-#define OP_ACK 4
-#define OP_ERROR 5
+
+const static unsigned short OP_RRQ = 1;
+const static unsigned short OP_WRQ = 2;
+const static unsigned short OP_DATA = 3;
+const static unsigned short OP_ACK = 4;
+const static unsigned short OP_ERROR = 5;
+const static int DATA_OFFSET = 4;
 char *progname;
 
-// max length of data is 512 bytes, 2 bytes op code, 2 bytes block number. total 516 bytes.
+/* Global variable to hold block number */
+unsigned short blockNumber = 0;
+
+/* Max length of data is 512 bytes, 2 bytes op code, 2 bytes block number. total 516 bytes. */
 const static int MAX_BUFFER_SIZE = 516;
 
 /* Size of maximum packet to received.                            */
@@ -45,7 +49,8 @@ int            sockfd;
 /* Temporary variables, counters and buffers.                      */
 
 	int    n, clilen;
-	char   mesg[MAXMESG];
+	char buffer[MAX_BUFFER_SIZE];
+	bzero(buffer, sizeof(buffer));
 
 /* Main echo server loop. Note that it never terminates, as there  */
 /* is no way for UDP to know when the data are finished.           */
@@ -61,64 +66,76 @@ int            sockfd;
 /* bytes, and store them in mesg. The sender's address is stored   */
 /* in pcli_addr and the structure's size is stored in clilen.      */
 
-// Since maximum is defined, we assume clilen will always be max of MAXSIZE - 1
 // Wait till server has recieved the packet from client
-// Recieves char array into mesg variable
-		n = recvfrom(sockfd, mesg, MAXSIZE - 1, 0, &pcli_addr, &clilen);
-
-		// After recieving data packet, we turn it to our system's appropriate
-		// little or big endian system
-		mesg.ntohs();
-		
+// Recieves char array into buffer variable
+		n = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, &pcli_addr, &clilen);
 /* n holds now the number of received bytes, or a negative number  */
 /* to show an error condition. Notice how we use progname to label */
 /* the source of the error.                                        */
-
-		if (n < 0)
-			{
-			 printf("%s: recvfrom error\n",progname);
-			 exit(3);
-			}
-
-	// Check type of message from client to the server
-	// Get first two bytes of message; tells us what operation to do
-	uint8_t opCode[2] = { mesg[0], mesg[1] };
-
-	if (opCode[0] == OP_ERROR) {  // packet has some error...
-		
-	} else if (opCode[0] == OP_RRQ) {  // client is requesting a file array
-		//send out data block #1
-		char buffer[MAX_BUFFER_SIZE];
-		bzero(buffer, sizeof(buffer));
-		unsigned short *opCodePtr = (unsigned short*) buffer;
-		*opCodePtr = htons(OP_DATA);
-		*opCodePtr = OP_CODE_DATA;
-		opCodePtr++;
-    // Have block pointer point to same as op pointer; the 3rd byte of buffer
-		unsigned short *blockNumPtr = opCodePtr;
-		// Fill in the block byte (from 3rd to 4th byte) with block number
-		*blockNumPtr = htons(blockNumber);
-		blockNumber++;
-		char *fileData = buffer + DATA_OFFSET;
-		std::ifstream in(argv[2]);
-		std::string contents((std::istreambuf_iterator<char>(in)), 
-    	std::istreambuf_iterator<char>());
-		char file[] = contents.c_str();
-		// use memcpy or bcopy, since it might not be a string.
-		strncpy (fileData, file, strlen(file));
-		if (sendto(sockfd, fileData, strlen(fileData), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != strlen(fileData))
-		{
-			printf("%s: sendto error on socket\n",progname);
+		if (n < 0) {
+			printf("%s: recvfrom error\n",progname);
 			exit(3);
 		}
-	} else if (opCode[0] == OP_WRQ) {  // client wants to send server a file array
-		
-	} else if (opCode[0] == OP_DATA) {  // this packet has file array
-		
-	} 
-	// Send the requested data back
-	// Create a byte array of size no more than MAXSIZE
-	uint8_t message[MAXSIZE - 1];
+
+		unsigned short *opCodePtrRcv = (unsigned short*) buffer;
+		unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
+		// if conditionals checking OP code to decide how to process remaining buffer array
+		if (opCodeRcv == OP_RRQ) { // Got read request
+			// Analyze rrq packet
+			// Check filename which is a string, end of string is marked with 0
+
+			// Send data block
+			char data_buffer[MAX_BUFFER_SIZE];
+			bzero(data_buffer, sizeof(data_buffer));
+			unsigned short *opCodePtr = (unsigned short*) data_buffer;
+			*opCodePtr = htons(OP_DATA);
+			*opCodePtr = OP_CODE_DATA;
+			opCodePtr++;
+			// Have block pointer point to same as op pointer; the 3rd byte of buffer
+			unsigned short *blockNumPtr = opCodePtr;
+			// Fill in the block byte (from 3rd to 4th byte) with block number
+			*blockNumPtr = htons(blockNumber);
+			// Removed below line, since block number is updated anyway when we recieve another packet
+			//blockNumber++;
+			char *fileData = data_buffer + DATA_OFFSET;
+			std::ifstream in(argv[2]);
+			std::string contents((std::istreambuf_iterator<char>(in)), 
+				std::istreambuf_iterator<char>());
+			char file[] = contents.c_str();
+			memcpy(fileData, file, strlen(file));
+			if (sendto(sockfd, fileData, strlen(fileData), 0, &pcli_addr, clilen) != n) {
+				printf("%s: sendto error\n",progname);
+				exit(4);
+			}
+		}	else if (opCodeRcv == OP_ACK) {
+			// Increment the pointer to the third byte for block number 
+			opCodePtrRcv++;
+			// Create unsigned int pointer and assign the two bytes there to the unsigned int.
+			unsigned short *blockNumPtr = opCodePtrRcv
+			blockNumber = ntohs(*blockNumPtr) + 1; // update our block number
+		} else if (opCodeRcv == OP_WRQ) { // Got a write request. Client is wants to send server a data packet
+			//
+		}	else if (opCodeRcv == OP_DATA) {
+			// Process rest of buffer array like done so above:
+			// Increment the pointer to the third byte for block number 
+			opCodePtrRcv++;
+			// Create unsigned int pointer and assign the two bytes there to the unsigned int.
+			unsigned short *blockNumPtr = opCodePtrRcv
+			blockNumber = ntohs(*blockNumPtr);
+			// Remember to convert to host byte order.
+			// create pointer char, pointing to 5th byte of buffer, copy the byte to a file on reciever side
+			char *fileData = buffer + DATA_OFFSET;
+			char file[MAXLINE];
+			memcpy(file, fileData, sizeOf(buffer) - DATA_OFFSET);
+			// Do  strncpy (fileData, file, strlen(file));  but in the reverse direction. Copying from the byte buffer to the file.
+			ofstream output(argv[2]);
+			for (int i = 0; i < sizeOf(buffer) - DATA_OFFSET; i++) {
+				ofstream << file[i];
+			}
+			
+		}
+
+
 
 /* Note that if you are using timeouts, n<0 may not mean an error, */
 /* but that the call was interrupted by a signal. To see what      */
