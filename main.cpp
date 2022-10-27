@@ -32,7 +32,6 @@ int main(int argc, const char * argv[]) {
     // convert from network order
     *opCodePtr = htons(OP_CODE_DATA);
     // pointer of op is pointing to start of the buffer array. fill in with op code data.
-    *opCodePtr = OP_CODE_DATA;
     opCodePtr++; // increment by 1 (unsigned short = 2 bytes), so now pointing to 3rd byte.
     
     unsigned short blockNum = 1;

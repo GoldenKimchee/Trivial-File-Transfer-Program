@@ -166,6 +166,39 @@ char    *argv[];
 	if (argv[1] == '-r') {
 		//send out a read request
 		//recv data block 1
+		char buffer[MAX_BUFFER_SIZE];
+		bzero(buffer, sizeof(buffer));
+		int n = recvfrom(sockfd, buffer, MAXLINE, 0, NULL, NULL);
+		if (n < 0)
+			{
+			 printf("%s: recvfrom error\n",progname);
+			 exit(4);
+			}
+
+		unsigned short *opCodePtrRcv = (unsigned short*) buffer;
+		unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
+		// if conditionals checking OP code to decide how to process remaining buffer array
+		if (opCodeRcv == OP_DATA) {
+			// Process rest of buffer array like done so above:
+			// Increment the pointer to the third byte for block number 
+			opCodePtrRcv++;
+			// Create unsigned int pointer and assign the two bytes there to the unsigned int.
+			unsigned short *blockNumPtr = opCodePtrRcv
+			blockNumber = ntohs(*blockNumPtr);
+			// Remember to convert to host byte order.
+			// create pointer char, pointing to 5th byte of buffer, copy the byte to a file on reciever side
+			char *fileData = buffer + DATA_OFFSET;
+			char file[MAXLINE];
+			memcpy(file, fileData, sizeOf(buffer) - DATA_OFFSET);
+			// Do  strncpy (fileData, file, strlen(file));  but in the reverse direction. Copying from the byte buffer to the file.
+			ofstream output(argv[2]);
+			for (int i = 0; i < sizeOf(buffer) - DATA_OFFSET; i++) {
+				ofstream << file[i];
+			}
+			// parse block num
+			// parse file data
+		}
+
 	}
 	else if (argv[1] == '-w') {
 		//send out write request
@@ -175,9 +208,8 @@ char    *argv[];
 		bzero(buffer, sizeof(buffer));
 		unsigned short *opCodePtr = (unsigned short*) buffer;
 		*opCodePtr = htons(OP_DATA);
-		*opCodePtr = OP_CODE_DATA;
 		opCodePtr++;
-    // Have block pointer point to same as op pointer; the 3rd byte of buffer
+    	// Have block pointer point to same as op pointer; the 3rd byte of buffer
 		unsigned short *blockNumPtr = opCodePtr;
 		// Fill in the block byte (from 3rd to 4th byte) with block number
 		*blockNumPtr = htons(blockNumber);
@@ -188,7 +220,7 @@ char    *argv[];
     	std::istreambuf_iterator<char>());
 		char file[] = contents.c_str();
 		// use memcpy or bcopy, since it might not be a string.
-		strncpy (fileData, file, strlen(file));
+		memcpy(fileData, file, strlen(file));
 		if (sendto(sockfd, fileData, strlen(fileData), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != strlen(fileData))
 		{
 			printf("%s: sendto error on socket\n",progname);
