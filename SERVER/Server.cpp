@@ -77,12 +77,22 @@ int            sockfd;
 			exit(3);
 		}
 
-		unsigned short *opCodePtrRcv = (unsigned short*) buffer;
-		unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
+		unsigned short *opCodePtr = (unsigned short*) buffer;
+		unsigned short opCodeRcv = ntohs(*opCodePtr);
 		// if conditionals checking OP code to decide how to process remaining buffer array
 		if (opCodeRcv == OP_RRQ) { // Got read request
 			// Analyze rrq packet
 			// Check filename which is a string, end of string is marked with 0
+			opCodePtr++;  // move to third byte
+			char *a = opCodePtr; // Start getting char on third byte
+			int i = 0;
+			unsigned short *stringPtr = opCodePtr;
+			string filename = "";
+			while (stringPtr != 0) {
+				filename = filename + a[i]
+				i++;
+				stringPtr++;
+			}
 
 			// Send data block
 			char data_buffer[MAX_BUFFER_SIZE];
@@ -98,7 +108,7 @@ int            sockfd;
 			// Removed below line, since block number is updated anyway when we recieve another packet
 			//blockNumber++;
 			char *fileData = data_buffer + DATA_OFFSET;
-			std::ifstream in(argv[2]);
+			std::ifstream in(filename);
 			std::string contents((std::istreambuf_iterator<char>(in)), 
 				std::istreambuf_iterator<char>());
 			char file[] = contents.c_str();
@@ -115,6 +125,8 @@ int            sockfd;
 			blockNumber = ntohs(*blockNumPtr) + 1; // update our block number
 		} else if (opCodeRcv == OP_WRQ) { // Got a write request. Client is wants to send server a data packet
 			//
+						// Create file?
+			snprintf(buffer, sizeof(buffer), "file_%d.txt", n);
 		}	else if (opCodeRcv == OP_DATA) {
 			// Process rest of buffer array like done so above:
 			// Increment the pointer to the third byte for block number 
