@@ -5,14 +5,17 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
+#include <string>
 #include <errno.h>          // for retrieving the error number.
 #include <string.h>         // for strerror function.
 #include <signal.h>         // for the signal handler registration.
 #include <unistd.h>
 #include <fstream>
 
+using namespace std;
+
 #define SERV_UDP_PORT 51542 //REPLACE WITH YOUR PORT NUMBER
-#define SERV_HOST_ADDR "10.158.82.33" //REPLACE WITH SERVER IP ADDRESS
+#define SERV_HOST_ADDR "10.158.82.133" //REPLACE WITH SERVER IP ADDRESS
 const static unsigned short OP_RRQ = 1;
 const static unsigned short OP_WRQ = 2;
 const static unsigned short OP_DATA = 3;
@@ -35,10 +38,7 @@ unsigned short blockNumber = 0;
 /* number. total 516 bytes.					    */
 const static int MAX_BUFFER_SIZE = 516;
 
-main(argc, argv)
-int     argc;
-char    *argv[];
-{
+int main(int argc, char *argv[]) {
 	int sockfd;
 	
 /* We need to set up two addresses, one for the client and one for */
@@ -95,7 +95,7 @@ char    *argv[];
 	}
 	
 	/* The user has initialized a read request on the client side.	*/
-	if (argv[1] == '-r') {
+	if (argv[1] == "-r") {
 
 		/* Send out a read request by creating a read request    */
 		/* as per TFTP protocol rfc1350 with opcode rrq and 	 */	
@@ -105,8 +105,8 @@ char    *argv[];
 		unsigned short *opCodeSendPtr = (unsigned short*) rrqBuffer;
 		*opCodeSendPtr = htons(OP_RRQ);
 		opCodeSendPtr++;
-		unsigned short *fileNamePtr = opCodeSendPtr;
-		*fileNamePtr = htons(argv[2]);
+		string *fileNamePtr = (string*) opCodeSendPtr;
+		*fileNamePtr = argv[2];
 		if (sendto(sockfd, fileNamePtr, sizeof(rrqBuffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != sizeof(rrqBuffer)) {
 			printf("%s: sendto error on socket\n",progname);
 			exit(3);
@@ -126,20 +126,20 @@ char    *argv[];
 		unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
 		if (opCodeRcv == OP_DATA) {
 			opCodePtrRcv++;
-			unsigned short *blockNumPtr = opCodePtrRcv
+			unsigned short *blockNumPtr = opCodePtrRcv;
 			blockNumber = ntohs(*blockNumPtr);
 			char *fileData = buffer + DATA_OFFSET;
 			char file[MAXLINE];
 			memcpy(file, fileData, sizeof(buffer) - DATA_OFFSET);
 			ofstream output(argv[2]);
 			for (int i = 0; i < sizeof(buffer) - DATA_OFFSET; i++) {
-				ofstream << file[i];
+				output << file[i];
 			}
 		}
 	}
 
 	/* The user has initialized a read request on the client side.	*/
-	else if (argv[1] == '-w') {
+	else if (argv[1] == "-w") {
 
 		/* Send out a read request by creating a read request    */
 		/* as per TFTP protocol rfc1350 with opcode rrq and      */	
@@ -149,8 +149,8 @@ char    *argv[];
 		unsigned short *opCodeSendPtr = (unsigned short*) wrqBuffer;
 		*opCodeSendPtr = htons(OP_WRQ);
 		opCodeSendPtr++;
-		unsigned short *fileNamePtr = opCodeSendPtr;
-		*fileNamePtr = htons(argv[2]);
+		string *fileNamePtr = (string*) opCodeSendPtr;
+		*fileNamePtr = argv[2]; // Change to put in string into char array by each char
 		if (sendto(sockfd, fileNamePtr, sizeof(wrqBuffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != sizeof(wrqBuffer)) {
 			printf("%s: sendto error on socket\n",progname);
 			exit(3);
@@ -161,17 +161,17 @@ char    *argv[];
 		/* acknowledgement packet has an opcode (4) and a block 	*/
 		/* number. 							*/
 		char ackBuffer[MAX_BUFFER_SIZE];
-		bzero(buffer, sizeof(buffer));
-		int n = recvfrom(sockfd, buffer, MAXLINE, 0, NULL, NULL);
+		bzero(ackBuffer, sizeof(ackBuffer));
+		int n = recvfrom(sockfd, ackBuffer, MAXLINE, 0, NULL, NULL);
 		if (n < 0) {
 			printf("%s: recvfrom error\n",progname);
 			exit(4);
 		}
-		unsigned short *opCodePtrRcv = (unsigned short*) buffer;
+		unsigned short *opCodePtrRcv = (unsigned short*) ackBuffer;
 		unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
 		if (opCodeRcv == OP_ACK) {
 			opCodePtrRcv++;
-			unsigned short *blockNumPtr = opCodePtrRcv
+			unsigned short *blockNumPtr = opCodePtrRcv;
 			blockNumber = ntohs(*blockNumPtr);
 		}
 
@@ -191,7 +191,8 @@ char    *argv[];
 		std::ifstream in(argv[2]);
 		std::string contents((std::istreambuf_iterator<char>(in)), 
     	std::istreambuf_iterator<char>());
-		char file[] = contents.c_str();
+		char file[contents.size()];
+    strcpy(file, contents.c_str());
 		memcpy(fileData, file, strlen(file));
 		if (sendto(sockfd, fileData, strlen(fileData), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != strlen(fileData)) {
 			printf("%s: sendto error on socket\n",progname);

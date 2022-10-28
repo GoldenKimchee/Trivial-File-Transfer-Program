@@ -8,11 +8,14 @@
 #include <arpa/inet.h>
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <stdlib.h>
 #include <errno.h>          // for retrieving the error number.
 #include <string.h>         // for strerror function.
 #include <signal.h>         // for the signal handler registration.
 #include <unistd.h>
+
+using namespace std;
 
 #define SERV_UDP_PORT   51542 // REPLACE WITH YOUR PORT NUMBER
 
@@ -42,9 +45,7 @@ string writeToFile;
 /* The dg_echo function receives data from the already initialized */
 /* socket sockfd and returns them to the sender.                   */
 
-dg_echo(sockfd)
-int            sockfd;
-{
+void dg_echo(int sockfd) {
 /* struct sockaddr is a general purpose data structure that holds  */
 /* information about a socket that can use a variety of protocols. */
 /* Here, we use Internet family protocols and UDP datagram ports.  */
@@ -75,7 +76,7 @@ int            sockfd;
 
 // Wait till server has recieved the packet from client
 // Recieves char array into buffer variable
-		n = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, &pcli_addr, &clilen);
+		n = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen);
 /* n holds now the number of received bytes, or a negative number  */
 /* to show an error condition. Notice how we use progname to label */
 /* the source of the error.                                        */
@@ -92,14 +93,12 @@ int            sockfd;
 			// Analyze rrq packet
 			// Check filename which is a string, end of string is marked with 0
 			opCodePtr++;  // move to third byte
-			char *a = opCodePtr; // Start getting char on third byte
+			char *a = (char*) opCodePtr; // Start getting char on third byte
 			int i = 0;
-			unsigned short *stringPtr = opCodePtr;
 			string filename = "";
-			while (stringPtr != 0) {
-				filename = filename + a[i]
+			while (a[i] != 0) {
+				filename = filename + a[i];
 				i++;
-				stringPtr++;
 			}
 
 			// Send data block
@@ -107,7 +106,7 @@ int            sockfd;
 			bzero(data_buffer, sizeof(data_buffer));
 			unsigned short *opCodePtr = (unsigned short*) data_buffer;
 			*opCodePtr = htons(OP_DATA);
-			*opCodePtr = OP_CODE_DATA;
+			*opCodePtr = OP_DATA;
 			opCodePtr++;
 			// Have block pointer point to same as op pointer; the 3rd byte of buffer
 			unsigned short *blockNumPtr = opCodePtr;
@@ -119,7 +118,8 @@ int            sockfd;
 			std::ifstream in(filename);
 			std::string contents((std::istreambuf_iterator<char>(in)), 
 				std::istreambuf_iterator<char>());
-			char file[] = contents.c_str();
+			char file[contents.size()];
+      strcpy(file, contents.c_str());
 			memcpy(fileData, file, strlen(file));
 			if (sendto(sockfd, fileData, strlen(fileData), 0, &pcli_addr, clilen) != n) {
 				printf("%s: sendto error\n",progname);
@@ -128,22 +128,20 @@ int            sockfd;
 
 		}	else if (opCodeRcv == OP_ACK) {
 			// Increment the pointer to the third byte for block number 
-			opCodePtrRcv++;
+			opCodePtr++;
 			// Create unsigned int pointer and assign the two bytes there to the unsigned int.
-			unsigned short *blockNumPtr = opCodePtrRcv
+			unsigned short *blockNumPtr = opCodePtr;
 			blockNumber = ntohs(*blockNumPtr) + 1; // update our block number
 
 		} else if (opCodeRcv == OP_WRQ) { // Got a write request. Client is wants to send server a data packet
 			// Check filename which is a string, end of string is marked with 0
 			opCodePtr++;  // move to third byte
-			char *a = opCodePtr; // Start getting char on third byte
+			char *a = (char*) opCodePtr; // Start getting char on third byte
 			int i = 0;
-			unsigned short *stringPtr = opCodePtr;
 			string filename = "";
-			while (stringPtr != 0) {
-				filename = filename + a[i]
+			while (a[i] != 0) {
+				filename = filename + a[i];
 				i++;
-				stringPtr++;
 			}
 			writeToFile = filename; // Save name of file to write to
 			char ackBuffer[4];
@@ -167,19 +165,19 @@ int            sockfd;
 		}	else if (opCodeRcv == OP_DATA) {
 			// Process rest of buffer array like done so above:
 			// Increment the pointer to the third byte for block number 
-			opCodePtrRcv++;
+			opCodePtr++;
 			// Create unsigned int pointer and assign the two bytes there to the unsigned int.
-			unsigned short *blockNumPtr = opCodePtrRcv
+			unsigned short *blockNumPtr = opCodePtr;
 			blockNumber = ntohs(*blockNumPtr);
 			// Remember to convert to host byte order.
 			// create pointer char, pointing to 5th byte of buffer, copy the byte to a file on reciever side
 			char *fileData = buffer + DATA_OFFSET;
 			char file[MAXLINE];
-			memcpy(file, fileData, sizeOf(buffer) - DATA_OFFSET);
+			memcpy(file, fileData, sizeof(buffer) - DATA_OFFSET);
 			// Do  strncpy (fileData, file, strlen(file));  but in the reverse direction. Copying from the byte buffer to the file.
 			ofstream output(writeToFile);
-			for (int i = 0; i < sizeOf(buffer) - DATA_OFFSET; i++) {
-				ofstream << file[i];
+			for (int i = 0; i < sizeof(buffer) - DATA_OFFSET; i++) {
+				output << file[i];
 			}
 
 			char ackBuffer[4];
@@ -206,10 +204,7 @@ int            sockfd;
 /* Main driver program. Initializes server's socket and calls the  */
 /* dg_echo function that never terminates.                         */
 
-main(argc, argv)
-int     argc;
-char    *argv[];
-{
+int main(int argc, char *argv[]) {
 	
 /* General purpose socket structures are accessed using an         */
 /* integer handle.                                                 */
