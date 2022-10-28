@@ -33,7 +33,7 @@ char *progname;
 #define MAXLINE 512
 
 /* Global variable to hold block number */
-unsigned short blockNumber = 0;
+unsigned short blockNumber = 1;
 
 /* Max length of data is 512 bytes, 2 bytes op code, 2 bytes block  */
 /* number. total 516 bytes.					    */
@@ -143,10 +143,12 @@ int main(int argc, char *argv[]) {
 			char *fileData = buffer + DATA_OFFSET;
 			char file[MAXLINE];
       cout << "about to create file from data packet contents" << endl;
-			memcpy(file, fileData, sizeof(buffer) - DATA_OFFSET);
+			bcopy(fileData, file, sizeof(buffer) - DATA_OFFSET);
 			ofstream output(argv[2]);
-			for (int i = 0; i < sizeof(buffer) - DATA_OFFSET; i++) {
+			int i = 0;
+			while (file[i] != 0) {
 				output << file[i];
+				i++;
 			}
 		}
 	}
@@ -161,9 +163,9 @@ int main(int argc, char *argv[]) {
 		unsigned short *opCodeSendPtr = (unsigned short*) wrqBuffer;
 		*opCodeSendPtr = htons(OP_WRQ);
 		opCodeSendPtr++;
-		string *fileNamePtr = (string*) opCodeSendPtr;
-		*fileNamePtr = argv[2]; // Change to put in string into char array by each char
-		if (sendto(sockfd, fileNamePtr, sizeof(wrqBuffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != sizeof(wrqBuffer)) {
+		char *fileNamePtr = wrqBuffer + 2;
+		memcpy(fileNamePtr, argv[2], strlen(argv[2]));
+		if (sendto(sockfd, wrqBuffer, sizeof(wrqBuffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != sizeof(wrqBuffer)) {
 			printf("%s: sendto error on socket\n",progname);
 			exit(3);
 		}
@@ -204,9 +206,10 @@ int main(int argc, char *argv[]) {
 		std::string contents((std::istreambuf_iterator<char>(in)), 
     	std::istreambuf_iterator<char>());
 		char file[contents.size()];
+		cout << "File contents: " << contents << endl;
     strcpy(file, contents.c_str());
-		memcpy(fileData, file, strlen(file));
-		if (sendto(sockfd, fileData, strlen(fileData), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != strlen(fileData)) {
+		bcopy(file, fileData, sizeof(file));
+		if (sendto(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != sizeof(buffer)) {
 			printf("%s: sendto error on socket\n",progname);
 			exit(3);
 		}

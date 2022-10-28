@@ -28,7 +28,7 @@ const static int DATA_OFFSET = 4;
 char *progname;
 
 /* Global variable to hold block number */
-unsigned short blockNumber = 0;
+unsigned short blockNumber = 1;
 
 /* Max length of data is 512 bytes, 2 bytes op code, 2 bytes block number. total 516 bytes. */
 const static int MAX_BUFFER_SIZE = 516;
@@ -91,6 +91,7 @@ void dg_echo(int sockfd) {
         	printf("0x%X,", buffer[i]);
     	}
 		cout << endl;
+		blockNumber++;
 		unsigned short *opCodePtr = (unsigned short*) buffer;
 		unsigned short opCodeRcv = ntohs(*opCodePtr);
 		// if conditionals checking OP code to decide how to process remaining buffer array
@@ -173,8 +174,12 @@ void dg_echo(int sockfd) {
 			unsigned short *blockPtr = opPtr;
 			// Fill in the block byte (from 3rd to 4th byte) with block number
 			*blockPtr = htons(blockNumber);
-			if (sendto(sockfd, ackBuffer, 4, 0, &pcli_addr, clilen) != n) {
-				printf("%s: sendto error\n",progname);
+			for ( int i = 0; i < sizeof(ackBuffer); i++ ) {
+        		printf("0x%X,", ackBuffer[i]);
+    		}
+			cout << endl;
+			if (sendto(sockfd, ackBuffer, sizeof(ackBuffer), 0, &pcli_addr, clilen) != sizeof(ackBuffer)) {
+				printf("%s: sendto error wrq\n",progname);
 				exit(4);
 			}
 
@@ -189,11 +194,19 @@ void dg_echo(int sockfd) {
 			// create pointer char, pointing to 5th byte of buffer, copy the byte to a file on reciever side
 			char *fileData = buffer + DATA_OFFSET;
 			char file[MAXLINE];
-			memcpy(file, fileData, sizeof(buffer) - DATA_OFFSET);
+			cout << "Size of file data: " << sizeof(fileData) << endl;
+			cout << "Size of buffer: " << sizeof(buffer) << endl;
+			cout << "Size being copied: " << (sizeof(buffer)/sizeof(buffer[0]) - DATA_OFFSET) << endl;
+			bcopy(fileData, file, sizeof(buffer) - DATA_OFFSET);
 			// Do  strncpy (fileData, file, strlen(file));  but in the reverse direction. Copying from the byte buffer to the file.
 			ofstream output(writeToFile);
-			for (int i = 0; i < sizeof(buffer) - DATA_OFFSET; i++) {
+			// for (int i = 0; i < sizeof(fileData) + DATA_OFFSET; i++) {
+			// 	output << file[i];
+			// }
+			int i = 0;
+			while (file[i] != 0) {
 				output << file[i];
+				i++;
 			}
 
 			char ackBuffer[4];
@@ -209,7 +222,7 @@ void dg_echo(int sockfd) {
 			unsigned short *blockPtr = opPtr;
 			// Fill in the block byte (from 3rd to 4th byte) with block number
 			*blockPtr = htons(blockNumber);
-			if (sendto(sockfd, ackBuffer, 4, 0, &pcli_addr, clilen) != n) {
+			if (sendto(sockfd, ackBuffer, 4, 0, &pcli_addr, clilen) != sizeof(ackBuffer)) {
 				printf("%s: sendto error\n",progname);
 				exit(4);
 			}
