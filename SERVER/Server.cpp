@@ -76,6 +76,7 @@ void dg_echo(int sockfd) {
 
 // Wait till server has recieved the packet from client
 // Recieves char array into buffer variable
+  cout<<"looking to recieve a packet" << endl;
 		n = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen);
 /* n holds now the number of received bytes, or a negative number  */
 /* to show an error condition. Notice how we use progname to label */
@@ -84,6 +85,7 @@ void dg_echo(int sockfd) {
 			printf("%s: recvfrom error\n",progname);
 			exit(3);
 		}
+    cout << "got a packet from client" << endl;
 
 		unsigned short *opCodePtr = (unsigned short*) buffer;
 		unsigned short opCodeRcv = ntohs(*opCodePtr);

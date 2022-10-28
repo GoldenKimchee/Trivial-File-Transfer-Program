@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <string>
+#include <iostream>
 #include <errno.h>          // for retrieving the error number.
 #include <string.h>         // for strerror function.
 #include <signal.h>         // for the signal handler registration.
@@ -39,6 +40,7 @@ unsigned short blockNumber = 0;
 const static int MAX_BUFFER_SIZE = 516;
 
 int main(int argc, char *argv[]) {
+  cout<<"start of main"<<endl;
 	int sockfd;
 	
 /* We need to set up two addresses, one for the client and one for */
@@ -93,10 +95,10 @@ int main(int argc, char *argv[]) {
 		printf("%s: can't bind local address\n",progname);
 		exit(2);
 	}
-	
+	cout<<"just before the -r and -w conditionals" << endl;
 	/* The user has initialized a read request on the client side.	*/
-	if (argv[1] == "-r") {
-
+	if (strcmp(argv[1], "-r") == 0) {
+    cout << "Start read request" << endl;
 		/* Send out a read request by creating a read request    */
 		/* as per TFTP protocol rfc1350 with opcode rrq and 	 */	
 		/* filename. 						 */
@@ -107,6 +109,7 @@ int main(int argc, char *argv[]) {
 		opCodeSendPtr++;
 		string *fileNamePtr = (string*) opCodeSendPtr;
 		*fileNamePtr = argv[2];
+    cout << "about to send to the server" << endl;
 		if (sendto(sockfd, fileNamePtr, sizeof(rrqBuffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != sizeof(rrqBuffer)) {
 			printf("%s: sendto error on socket\n",progname);
 			exit(3);
@@ -122,14 +125,17 @@ int main(int argc, char *argv[]) {
 			 printf("%s: recvfrom error\n",progname);
 			 exit(4);
 		}
+    cout << "got a packet from the server" << endl;
 		unsigned short *opCodePtrRcv = (unsigned short*) buffer;
 		unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
 		if (opCodeRcv == OP_DATA) {
+      cout << "packet was data" << endl;
 			opCodePtrRcv++;
 			unsigned short *blockNumPtr = opCodePtrRcv;
 			blockNumber = ntohs(*blockNumPtr);
 			char *fileData = buffer + DATA_OFFSET;
 			char file[MAXLINE];
+      cout << "about to create file from data packet contents" << endl;
 			memcpy(file, fileData, sizeof(buffer) - DATA_OFFSET);
 			ofstream output(argv[2]);
 			for (int i = 0; i < sizeof(buffer) - DATA_OFFSET; i++) {
@@ -137,10 +143,9 @@ int main(int argc, char *argv[]) {
 			}
 		}
 	}
-
-	/* The user has initialized a read request on the client side.	*/
-	else if (argv[1] == "-w") {
-
+  /* The user has initialized a read request on the client side.	*/
+	else if (strcmp(argv[1], "-w") == 0) {
+    cout << "start write request" << endl;
 		/* Send out a read request by creating a read request    */
 		/* as per TFTP protocol rfc1350 with opcode rrq and      */	
 		/* filename. 					         */
@@ -199,6 +204,7 @@ int main(int argc, char *argv[]) {
 			exit(3);
 		}
 	}
+  cout<<"end of all conditionals" <<endl;
 
 /* We return here after the client sees the EOF and terminates.    */
 /* We can now release the socket and exit normally.                */
