@@ -15,8 +15,8 @@
 
 using namespace std;
 
-#define SERV_UDP_PORT 51542 //REPLACE WITH YOUR PORT NUMBER
-#define SERV_HOST_ADDR "10.158.82.133" //REPLACE WITH SERVER IP ADDRESS
+#define SERV_UDP_PORT 51971 //REPLACE WITH YOUR PORT NUMBER
+#define SERV_HOST_ADDR "127.0.0.1" //REPLACE WITH SERVER IP ADDRESS
 const static unsigned short OP_RRQ = 1;
 const static unsigned short OP_WRQ = 2;
 const static unsigned short OP_DATA = 3;
@@ -107,14 +107,17 @@ int main(int argc, char *argv[]) {
 		unsigned short *opCodeSendPtr = (unsigned short*) rrqBuffer;
 		*opCodeSendPtr = htons(OP_RRQ);
 		opCodeSendPtr++;
-		string *fileNamePtr = (string*) opCodeSendPtr;
-		*fileNamePtr = argv[2];
+		char *fileNamePtr = rrqBuffer + 2;
+		memcpy(fileNamePtr, argv[2], strlen(argv[2]));
     cout << "about to send to the server" << endl;
-		if (sendto(sockfd, fileNamePtr, sizeof(rrqBuffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != sizeof(rrqBuffer)) {
+		cout << endl;
+		for ( int i = 0; i < 30; i++ ) {
+        	printf("0x%X,", rrqBuffer[i]);
+    	}
+		if (sendto(sockfd, rrqBuffer, sizeof(rrqBuffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != sizeof(rrqBuffer)) {
 			printf("%s: sendto error on socket\n",progname);
 			exit(3);
 		}
-
 		/* Recieve data block by creating buffer and parsing it     */
 		/* as per TFTP protocol rfc1350 where a data block has an   */
 		/* opcode (3), a block number, and data.   		    */
@@ -126,6 +129,10 @@ int main(int argc, char *argv[]) {
 			 exit(4);
 		}
     cout << "got a packet from the server" << endl;
+		for ( int i = 0; i < 30; i++ ) {
+        	printf("0x%X,", buffer[i]);
+    	}
+		cout << endl;
 		unsigned short *opCodePtrRcv = (unsigned short*) buffer;
 		unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
 		if (opCodeRcv == OP_DATA) {
