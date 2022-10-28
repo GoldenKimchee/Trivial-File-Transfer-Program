@@ -32,7 +32,7 @@ char *progname;
 unsigned short blockNumber = 0;
 
 /* Max length of data is 512 bytes, 2 bytes op code, 2 bytes block  */
-/* number. total 516 bytes.											*/
+/* number. total 516 bytes.					    */
 const static int MAX_BUFFER_SIZE = 516;
 
 main(argc, argv)
@@ -97,9 +97,9 @@ char    *argv[];
 	/* The user has initialized a read request on the client side.	*/
 	if (argv[1] == '-r') {
 
-		/* Send out a read request by creating a read request       */
-		/* as per TFTP protocol rfc1350 with opcode rrq and 		*/	
-		/* filename. 												*/
+		/* Send out a read request by creating a read request    */
+		/* as per TFTP protocol rfc1350 with opcode rrq and 	 */	
+		/* filename. 						 */
 		char rrqBuffer[MAX_BUFFER_SIZE];
 		bzero(rrqBuffer, sizeof(rrqBuffer));
 		unsigned short *opCodeSendPtr = (unsigned short*) rrqBuffer;
@@ -112,9 +112,9 @@ char    *argv[];
 			exit(3);
 		}
 
-		/* Recieve data block by creating buffer and parsing it 	*/
+		/* Recieve data block by creating buffer and parsing it     */
 		/* as per TFTP protocol rfc1350 where a data block has an   */
-		/* opcode (3), a block number, and data.   					*/
+		/* opcode (3), a block number, and data.   		    */
 		char buffer[MAX_BUFFER_SIZE];
 		bzero(buffer, sizeof(buffer));
 		int n = recvfrom(sockfd, buffer, MAXLINE, 0, NULL, NULL);
@@ -141,9 +141,9 @@ char    *argv[];
 	/* The user has initialized a read request on the client side.	*/
 	else if (argv[1] == '-w') {
 
-		/* Send out a read request by creating a read request       */
-		/* as per TFTP protocol rfc1350 with opcode rrq and 		*/	
-		/* filename. 												*/
+		/* Send out a read request by creating a read request    */
+		/* as per TFTP protocol rfc1350 with opcode rrq and      */	
+		/* filename. 					         */
 		char wrqBuffer[MAX_BUFFER_SIZE];
 		bzero(wrqBuffer, sizeof(wrqBuffer));
 		unsigned short *opCodeSendPtr = (unsigned short*) wrqBuffer;
@@ -159,7 +159,7 @@ char    *argv[];
 		/* Recieve acknowledgment packet by creating buffer and 	*/
 		/* parsing it as per TFTP protocol rfc1350 where an 		*/
 		/* acknowledgement packet has an opcode (4) and a block 	*/
-		/* number. 													*/
+		/* number. 							*/
 		char ackBuffer[MAX_BUFFER_SIZE];
 		bzero(buffer, sizeof(buffer));
 		int n = recvfrom(sockfd, buffer, MAXLINE, 0, NULL, NULL);
@@ -177,8 +177,8 @@ char    *argv[];
 
 		/* Send out the data packet created from the file by 		*/
 		/* creating a buffer and constructing a data packet as per	*/
-		/* TFTP protocol rfc1350 where a data packet has an opcode  */
-		/* (3), a block number, and data. 							*/
+		/* TFTP protocol rfc1350 where a data packet has an opcode      */
+		/* (3), a block number, and data. 				*/
 		char buffer[MAX_BUFFER_SIZE];
 		bzero(buffer, sizeof(buffer));
 		unsigned short *opCodePtr = (unsigned short*) buffer;
