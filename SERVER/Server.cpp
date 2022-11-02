@@ -138,33 +138,22 @@ void dg_echo(int sockfd) {
 		} else if (opCodeRcv == OP_WRQ) { // Got a write request. Client is wants to send server a data packet
 			
 			cout<< "Recieved WRQ packet." << endl;
-			// Check filename which is a string, end of string is marked with 0
-			opCodePtr++;  // move to third byte
-			char *a = (char*) opCodePtr; // Start getting char on third byte
+			opCodePtr++;  
+			char *a = (char*) opCodePtr; 
 			int i = 0;
 			string filename = "";
 			while (a[i] != 0) {
 				filename = filename + a[i];
 				i++;
 			}
-			writeToFile = filename; // Save name of file to write to
+			writeToFile = filename;
 			char ackBuffer[4];
 			bzero(ackBuffer, 4);			
-			// Pointer thats pointing to the start of the buffer array
 			unsigned short *opPtr = (unsigned short*) ackBuffer;
-			// convert from network order
 			*opPtr = htons(OP_ACK);
-			// pointer of op is pointing to start of the buffer array. fill in with op code data.
-			opPtr++; // increment by 1 (unsigned short = 2 bytes), so now pointing to 3rd byte.
-			
-			// Have block pointer point to same as op pointer; the 3rd byte of buffer
+			opPtr++; 
 			unsigned short *blockPtr = opPtr;
-			// Fill in the block byte (from 3rd to 4th byte) with block number
 			*blockPtr = htons(blockNumber);
-			for ( int i = 0; i < sizeof(ackBuffer); i++ ) {
-        		printf("0x%X,", ackBuffer[i]);
-    		}
-			cout << endl;
 			if (sendto(sockfd, ackBuffer, sizeof(ackBuffer), 0, &pcli_addr, clilen) != sizeof(ackBuffer)) {
 				printf("%s: sendto error wrq\n",progname);
 				exit(4);
@@ -173,25 +162,13 @@ void dg_echo(int sockfd) {
 
 		}	else if (opCodeRcv == OP_DATA) {
 			cout<< "Recieved DATA packet." << endl;
-			// Process rest of buffer array like done so above:
-			// Increment the pointer to the third byte for block number 
 			opCodePtr++;
-			// Create unsigned int pointer and assign the two bytes there to the unsigned int.
 			unsigned short *blockNumPtr = opCodePtr;
 			blockNumber = ntohs(*blockNumPtr);
-			// Remember to convert to host byte order.
-			// create pointer char, pointing to 5th byte of buffer, copy the byte to a file on reciever side
 			char *fileData = buffer + DATA_OFFSET;
 			char file[MAXLINE];
-			cout << "Size of file data: " << sizeof(fileData) << endl;
-			cout << "Size of buffer: " << sizeof(buffer) << endl;
-			cout << "Size being copied: " << (sizeof(buffer)/sizeof(buffer[0]) - DATA_OFFSET) << endl;
 			bcopy(fileData, file, sizeof(buffer) - DATA_OFFSET);
-			// Do  strncpy (fileData, file, strlen(file));  but in the reverse direction. Copying from the byte buffer to the file.
 			ofstream output(writeToFile);
-			// for (int i = 0; i < sizeof(fileData) + DATA_OFFSET; i++) {
-			// 	output << file[i];
-			// }
 			int i = 0;
 			while (file[i] != 0) {
 				output << file[i];
@@ -201,16 +178,11 @@ void dg_echo(int sockfd) {
 
 			char ackBuffer[4];
 			bzero(ackBuffer, 4);			
-			// Pointer thats pointing to the start of the buffer array
 			unsigned short *opPtr = (unsigned short*) ackBuffer;
-			// convert from network order
 			*opPtr = htons(OP_ACK);
-			// pointer of op is pointing to start of the buffer array. fill in with op code data.
-			opPtr++; // increment by 1 (unsigned short = 2 bytes), so now pointing to 3rd byte.
+			opPtr++; 
 			
-			// Have block pointer point to same as op pointer; the 3rd byte of buffer
 			unsigned short *blockPtr = opPtr;
-			// Fill in the block byte (from 3rd to 4th byte) with block number
 			*blockPtr = htons(blockNumber);
 			if (sendto(sockfd, ackBuffer, 4, 0, &pcli_addr, clilen) != sizeof(ackBuffer)) {
 				printf("%s: sendto error\n",progname);
