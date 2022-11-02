@@ -76,7 +76,7 @@ void dg_echo(int sockfd) {
 
 // Wait till server has recieved the packet from client
 // Recieves char array into buffer variable
-  cout<<"looking to recieve a packet" << endl;
+  cout<< "Server is ready to recieve a packet." << endl;
 		n = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen);
 /* n holds now the number of received bytes, or a negative number  */
 /* to show an error condition. Notice how we use progname to label */
@@ -85,17 +85,11 @@ void dg_echo(int sockfd) {
 			printf("%s: recvfrom error\n",progname);
 			exit(3);
 		}
-    cout << "got a packet from client" << endl;
-
-		for ( int i = 0; i < 30; i++ ) {
-        	printf("0x%X,", buffer[i]);
-    	}
-		cout << endl;
 		unsigned short *opCodePtr = (unsigned short*) buffer;
 		unsigned short opCodeRcv = ntohs(*opCodePtr);
 		// if conditionals checking OP code to decide how to process remaining buffer array
 		if (opCodeRcv == OP_RRQ) { // Got read request
-
+			cout<< "Recieved RRQ packet." << endl;
 			// Analyze rrq packet
 			// Check filename which is a string, end of string is marked with 0
 			opCodePtr++;  // move to third byte
@@ -120,29 +114,21 @@ void dg_echo(int sockfd) {
 			// Removed below line, since block number is updated anyway when we recieve another packet
 			//blockNumber++;
 			char *fileData = data_buffer + DATA_OFFSET;
-			cout << "Filename: " << filename << endl;
 			std::ifstream in(filename);
 			std::string contents((std::istreambuf_iterator<char>(in)), 
 				std::istreambuf_iterator<char>());
-			cout << "Contents of string contents: " << contents << endl;
 			char file[contents.size()];
-      		strcpy(file, contents.c_str());
-			cout << "Contents of file: " << endl;
-			for (int i = 0; i < sizeof(file); i++) {
-				cout << file[i];
-			}
-			cout << endl;
+      strcpy(file, contents.c_str());
 			memcpy(fileData, file, strlen(file));
-
-			for ( int i = 0; i < 30; i++ ) {
-        		printf("0x%X,", data_buffer[i]);
-    		}
 			if (sendto(sockfd, data_buffer, sizeof(data_buffer), 0, &pcli_addr, clilen) != n) {
 				printf("%s: sendto error\n",progname);
 				exit(4);
 			}
+			cout<< "Server sent DATA packet of block #" << blockNumber << " to client." << endl;
 
 		}	else if (opCodeRcv == OP_ACK) {
+
+			cout<< "Recieved ACK packet." << endl;
 			// Increment the pointer to the third byte for block number 
 			opCodePtr++;
 			// Create unsigned int pointer and assign the two bytes there to the unsigned int.
@@ -150,6 +136,8 @@ void dg_echo(int sockfd) {
 			blockNumber = ntohs(*blockNumPtr) + 1; // update our block number
 
 		} else if (opCodeRcv == OP_WRQ) { // Got a write request. Client is wants to send server a data packet
+			
+			cout<< "Recieved WRQ packet." << endl;
 			// Check filename which is a string, end of string is marked with 0
 			opCodePtr++;  // move to third byte
 			char *a = (char*) opCodePtr; // Start getting char on third byte
@@ -177,8 +165,10 @@ void dg_echo(int sockfd) {
 				printf("%s: sendto error\n",progname);
 				exit(4);
 			}
+			cout << "Server sent ACK packet of block #" << blockNumber << " to client." << endl;
 
 		}	else if (opCodeRcv == OP_DATA) {
+			cout<< "Recieved DATA packet." << endl;
 			// Process rest of buffer array like done so above:
 			// Increment the pointer to the third byte for block number 
 			opCodePtr++;
@@ -195,6 +185,7 @@ void dg_echo(int sockfd) {
 			for (int i = 0; i < sizeof(buffer) - DATA_OFFSET; i++) {
 				output << file[i];
 			}
+			cout << "Wrote DATA packet contents to file." << endl;
 
 			char ackBuffer[4];
 			bzero(ackBuffer, 4);			
@@ -213,6 +204,7 @@ void dg_echo(int sockfd) {
 				printf("%s: sendto error\n",progname);
 				exit(4);
 			}
+			cout << "Server sent ACK packet of block #" << blockNumber << " to client." << endl;
 		}
 	}
 }
