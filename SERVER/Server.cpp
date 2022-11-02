@@ -14,6 +14,7 @@
 #include <string.h>         // for strerror function.
 #include <signal.h>         // for the signal handler registration.
 #include <unistd.h>
+#include <vector>
 
 using namespace std;
 
@@ -45,7 +46,7 @@ string writeToFile;
 /* The dg_echo function receives data from the already initialized */
 /* socket sockfd and returns them to the sender.                   */
 
-void dg_echo(int sockfd) {
+void dg_echo(int sockfd, int argc, char *argv[]) {
 /* struct sockaddr is a general purpose data structure that holds  */
 /* information about a socket that can use a variety of protocols. */
 /* Here, we use Internet family protocols and UDP datagram ports.  */
@@ -60,11 +61,6 @@ void dg_echo(int sockfd) {
 	char buffer[MAX_BUFFER_SIZE];
 	bzero(buffer, sizeof(buffer));
 
-/* Main echo server loop. Note that it never terminates, as there  */
-/* is no way for UDP to know when the data are finished.           */
-
-	for ( ; ; ) {
-
 /* Initialize the maximum size of the structure holding the        */
 /* client's address.                                               */
 
@@ -74,17 +70,99 @@ void dg_echo(int sockfd) {
 /* bytes, and store them in mesg. The sender's address is stored   */
 /* in pcli_addr and the structure's size is stored in clilen.      */
 
-// Wait till server has recieved the packet from client
-// Recieves char array into buffer variable
-  cout<< "Server is ready to recieve a packet." << endl;
-		n = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen);
-/* n holds now the number of received bytes, or a negative number  */
+/* n holds the number of received bytes, or a negative number  */
 /* to show an error condition. Notice how we use progname to label */
 /* the source of the error.                                        */
-		if (n < 0) {
-			printf("%s: recvfrom error\n",progname);
-			exit(3);
+
+// Server is requesting data packets
+if (strcmp(argv[1], "-r") == 0) {
+	// Server must first send the client a read request
+	char rrqBuffer[MAX_BUFFER_SIZE];
+	bzero(rrqBuffer, sizeof(rrqBuffer));
+	unsigned short *opCodeSendPtr = (unsigned short*) rrqBuffer;
+	*opCodeSendPtr = htons(OP_RRQ);
+	opCodeSendPtr++;
+	char *fileNamePtr = rrqBuffer + 2;
+	memcpy(fileNamePtr, argv[2], strlen(argv[2]));
+	if (sendto(sockfd, rrqBuffer, 4, 0, &pcli_addr, clilen) != sizeof(rrqBuffer)) {
+		printf("%s: sendto error\n",progname);
+		exit(4);
+	}
+	cout << "Sent the client a RRQ packet." << endl;
+
+	// Continue to recieve all data packets 
+	while (true) {
+		// Following code assumes that the recieved packet is DATA type
+		char buffer[MAX_BUFFER_SIZE];
+		bzero(buffer, sizeof(buffer));
+		if (int n < recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen)) {
+			 printf("%s: recvfrom error getting data packet\n",progname);
+			 exit(4);
 		}
+		cout << "Recieved a packet from client." << endl;
+		//convert buffer to vector
+		vector<char> bufferVector(buffer, buffer + sizeof(buffer) / sizeof(buffer[0]));
+		//if data field is all 0
+		if(bufferVector.end() == find(bufferVector.begin() + DATA_OFFSET, bufferVector.end(), false)) {
+			//last packet, break
+			cout << "Recieved last packet from client." << endl;
+			break;
+		}
+		unsigned short *opCodePtrRcv = (unsigned short*) buffer;
+		unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
+		if (opCodeRcv == OP_DATA) {
+			opCodePtrRcv++;
+			unsigned short *blockNumPtr = opCodePtrRcv;
+			blockNumber = ntohs(*blockNumPtr);
+			cout << "Received block #" << blockNumber << " of data." << endl;
+			char *fileData = buffer + DATA_OFFSET;
+			char file[MAXLINE];
+			bcopy(fileData, file, sizeof(buffer) - DATA_OFFSET);
+			ofstream output(argv[2]);
+			int i = 0;
+			while (file[i] != 0) {
+				output << file[i];
+				i++;
+			}
+		}
+
+		// Send ACK packet for every DATA packet recieved
+		char ackBuffer[4];
+		bzero(ackBuffer, 4);			
+		unsigned short *opPtr = (unsigned short*) ackBuffer;
+		*opPtr = htons(OP_ACK);
+		opPtr++; 
+		unsigned short *blockPtr = opPtr;
+		*blockPtr = htons(blockNumber);
+		if (sendto(sockfd, ackBuffer, sizeof(ackBuffer), 0, &pcli_addr, clilen) != sizeof(ackBuffer)) {
+			printf("%s: sendto error with ack packet\n",progname);
+			exit(4);
+		}
+		cout << "Send ACK packet to client." << endl;
+	}
+
+	// Send last ACK packet to acknowledge last packet was recieved
+	char ackBuffer[4];
+	bzero(ackBuffer, 4);			
+	unsigned short *opPtr = (unsigned short*) ackBuffer;
+	*opPtr = htons(OP_ACK);
+	opPtr++; 
+	unsigned short *blockPtr = opPtr;
+	*blockPtr = htons(blockNumber);
+	if (sendto(sockfd, ackBuffer, sizeof(ackBuffer), 0, &pcli_addr, clilen) != sizeof(ackBuffer)) {
+		printf("%s: sendto error with last ack packet\n",progname);
+		exit(4);
+		}
+	}
+	cout << endl;
+	cout << "Done recieving all data packets." << endl;
+	cout << "File should be fully downloaded." << endl;
+	cout << endl;
+	return;
+
+
+
+
 		unsigned short *opCodePtr = (unsigned short*) buffer;
 		unsigned short opCodeRcv = ntohs(*opCodePtr);
 		// if conditionals checking OP code to decide how to process remaining buffer array
@@ -268,9 +346,8 @@ int main(int argc, char *argv[]) {
 /* local socket to dg_echo, as the client's data are included in   */
 /* all received datagrams.                                         */
 
-	dg_echo(sockfd);
+	dg_echo(sockfd, argc, argv);
 
-/* The echo function in this example never terminates, so this     */
-/* code should be unreachable.                                     */
-
+	close(sockfd);
+	exit(0);
 }
