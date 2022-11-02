@@ -74,157 +74,59 @@ void dg_echo(int sockfd, int argc, char *argv[]) {
 /* to show an error condition. Notice how we use progname to label */
 /* the source of the error.                                        */
 
-// Server is requesting data packets
-if (strcmp(argv[1], "-r") == 0) {
-	// Server must first send the client a read request
-	char rrqBuffer[MAX_BUFFER_SIZE];
-	bzero(rrqBuffer, sizeof(rrqBuffer));
-	unsigned short *opCodeSendPtr = (unsigned short*) rrqBuffer;
-	*opCodeSendPtr = htons(OP_RRQ);
-	opCodeSendPtr++;
-	char *fileNamePtr = rrqBuffer + 2;
-	memcpy(fileNamePtr, argv[2], strlen(argv[2]));
-	if (sendto(sockfd, rrqBuffer, 4, 0, &pcli_addr, clilen) != sizeof(rrqBuffer)) {
-		printf("%s: sendto error\n",progname);
-		exit(4);
-	}
-	cout << "Sent the client a RRQ packet." << endl;
-
-	// Continue to recieve all data packets 
-	while (true) {
-		// Following code assumes that the recieved packet is DATA type
-		char buffer[MAX_BUFFER_SIZE];
-		bzero(buffer, sizeof(buffer));
-		if (int n < recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen)) {
-			 printf("%s: recvfrom error getting data packet\n",progname);
-			 exit(4);
-		}
-		cout << "Recieved a packet from client." << endl;
-		//convert buffer to vector
-		vector<char> bufferVector(buffer, buffer + sizeof(buffer) / sizeof(buffer[0]));
-		//if data field is all 0
-		if(bufferVector.end() == find(bufferVector.begin() + DATA_OFFSET, bufferVector.end(), false)) {
-			//last packet, break
-			cout << "Recieved last packet from client." << endl;
-			break;
-		}
-		unsigned short *opCodePtrRcv = (unsigned short*) buffer;
-		unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
-		if (opCodeRcv == OP_DATA) {
-			opCodePtrRcv++;
-			unsigned short *blockNumPtr = opCodePtrRcv;
-			blockNumber = ntohs(*blockNumPtr);
-			cout << "Received block #" << blockNumber << " of data." << endl;
-			char *fileData = buffer + DATA_OFFSET;
-			char file[MAXLINE];
-			bcopy(fileData, file, sizeof(buffer) - DATA_OFFSET);
-			ofstream output(argv[2]);
-			int i = 0;
-			while (file[i] != 0) {
-				output << file[i];
-				i++;
-			}
-		}
-
-		// Send ACK packet for every DATA packet recieved
-		char ackBuffer[4];
-		bzero(ackBuffer, 4);			
-		unsigned short *opPtr = (unsigned short*) ackBuffer;
-		*opPtr = htons(OP_ACK);
-		opPtr++; 
-		unsigned short *blockPtr = opPtr;
-		*blockPtr = htons(blockNumber);
-		if (sendto(sockfd, ackBuffer, sizeof(ackBuffer), 0, &pcli_addr, clilen) != sizeof(ackBuffer)) {
-			printf("%s: sendto error with ack packet\n",progname);
+	// Server is requesting data packets
+	if (strcmp(argv[1], "-r") == 0) {
+		// Server must first send the client a read request
+		char rrqBuffer[MAX_BUFFER_SIZE];
+		bzero(rrqBuffer, sizeof(rrqBuffer));
+		unsigned short *opCodeSendPtr = (unsigned short*) rrqBuffer;
+		*opCodeSendPtr = htons(OP_RRQ);
+		opCodeSendPtr++;
+		char *fileNamePtr = rrqBuffer + 2;
+		memcpy(fileNamePtr, argv[2], strlen(argv[2]));
+		if (sendto(sockfd, rrqBuffer, 4, 0, &pcli_addr, clilen) != sizeof(rrqBuffer)) {
+			printf("%s: sendto error\n",progname);
 			exit(4);
 		}
-		cout << "Send ACK packet to client." << endl;
-	}
+		cout << "Sent the client a RRQ packet." << endl;
 
-	// Send last ACK packet to acknowledge last packet was recieved
-	char ackBuffer[4];
-	bzero(ackBuffer, 4);			
-	unsigned short *opPtr = (unsigned short*) ackBuffer;
-	*opPtr = htons(OP_ACK);
-	opPtr++; 
-	unsigned short *blockPtr = opPtr;
-	*blockPtr = htons(blockNumber);
-	if (sendto(sockfd, ackBuffer, sizeof(ackBuffer), 0, &pcli_addr, clilen) != sizeof(ackBuffer)) {
-		printf("%s: sendto error with last ack packet\n",progname);
-		exit(4);
-		}
-	}
-	cout << endl;
-	cout << "Done recieving all data packets." << endl;
-	cout << "File should be fully downloaded." << endl;
-	cout << endl;
-	return;
-
-
-
-
-		unsigned short *opCodePtr = (unsigned short*) buffer;
-		unsigned short opCodeRcv = ntohs(*opCodePtr);
-		// if conditionals checking OP code to decide how to process remaining buffer array
-		if (opCodeRcv == OP_RRQ) { // Got read request
-			cout<< "Recieved RRQ packet." << endl;
-			// Analyze rrq packet
-			// Check filename which is a string, end of string is marked with 0
-			opCodePtr++;  // move to third byte
-			char *a = (char*) opCodePtr; // Start getting char on third byte
-			int i = 0;
-			string filename = "";
-			while (a[i] != 0) {
-				filename = filename + a[i];
-				i++;
-			}
-
-			// Send data block
-			char data_buffer[MAX_BUFFER_SIZE];
-			bzero(data_buffer, sizeof(data_buffer));
-			unsigned short *opCodePtr = (unsigned short*) data_buffer;
-			*opCodePtr = htons(OP_DATA);
-			opCodePtr++;
-			// Have block pointer point to same as op pointer; the 3rd byte of buffer
-			unsigned short *blockNumPtr = opCodePtr;
-			// Fill in the block byte (from 3rd to 4th byte) with block number
-			*blockNumPtr = htons(blockNumber);
-			// Removed below line, since block number is updated anyway when we recieve another packet
-			//blockNumber++;
-			char *fileData = data_buffer + DATA_OFFSET;
-			std::ifstream in(filename);
-			std::string contents((std::istreambuf_iterator<char>(in)), 
-				std::istreambuf_iterator<char>());
-			char file[contents.size()];
-      strcpy(file, contents.c_str());
-			memcpy(fileData, file, strlen(file));
-			if (sendto(sockfd, data_buffer, sizeof(data_buffer), 0, &pcli_addr, clilen) != n) {
-				printf("%s: sendto error\n",progname);
+		// Continue to recieve all data packets 
+		while (true) {
+			// Following code assumes that the recieved packet is DATA type
+			char buffer[MAX_BUFFER_SIZE];
+			bzero(buffer, sizeof(buffer));
+			if (int n < recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen)) {
+				printf("%s: recvfrom error getting data packet\n",progname);
 				exit(4);
 			}
-			cout<< "Server sent DATA packet of block #" << blockNumber << " to client." << endl;
-
-		}	else if (opCodeRcv == OP_ACK) {
-
-			cout<< "Recieved ACK packet." << endl;
-			// Increment the pointer to the third byte for block number 
-			opCodePtr++;
-			// Create unsigned int pointer and assign the two bytes there to the unsigned int.
-			unsigned short *blockNumPtr = opCodePtr;
-			blockNumber = ntohs(*blockNumPtr) + 1; // update our block number
-
-		} else if (opCodeRcv == OP_WRQ) { // Got a write request. Client is wants to send server a data packet
-			
-			cout<< "Recieved WRQ packet." << endl;
-			opCodePtr++;  
-			char *a = (char*) opCodePtr; 
-			int i = 0;
-			string filename = "";
-			while (a[i] != 0) {
-				filename = filename + a[i];
-				i++;
+			cout << "Recieved a packet from client." << endl;
+			//convert buffer to vector
+			vector<char> bufferVector(buffer, buffer + sizeof(buffer) / sizeof(buffer[0]));
+			//if data field is all 0
+			if(bufferVector.end() == find(bufferVector.begin() + DATA_OFFSET, bufferVector.end(), false)) {
+				//last packet, break
+				cout << "Recieved last packet from client." << endl;
+				break;
 			}
-			writeToFile = filename;
+			unsigned short *opCodePtrRcv = (unsigned short*) buffer;
+			unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
+			if (opCodeRcv == OP_DATA) {
+				opCodePtrRcv++;
+				unsigned short *blockNumPtr = opCodePtrRcv;
+				blockNumber = ntohs(*blockNumPtr);
+				cout << "Received block #" << blockNumber << " of data." << endl;
+				char *fileData = buffer + DATA_OFFSET;
+				char file[MAXLINE];
+				bcopy(fileData, file, sizeof(buffer) - DATA_OFFSET);
+				ofstream output(argv[2]);
+				int i = 0;
+				while (file[i] != 0) {
+					output << file[i];
+					i++;
+				}
+			}
+
+			// Send ACK packet for every DATA packet recieved
 			char ackBuffer[4];
 			bzero(ackBuffer, 4);			
 			unsigned short *opPtr = (unsigned short*) ackBuffer;
@@ -233,42 +135,148 @@ if (strcmp(argv[1], "-r") == 0) {
 			unsigned short *blockPtr = opPtr;
 			*blockPtr = htons(blockNumber);
 			if (sendto(sockfd, ackBuffer, sizeof(ackBuffer), 0, &pcli_addr, clilen) != sizeof(ackBuffer)) {
-				printf("%s: sendto error wrq\n",progname);
+				printf("%s: sendto error with ack packet\n",progname);
 				exit(4);
 			}
-			cout << "Server sent ACK packet of block #" << blockNumber << " to client." << endl;
+			cout << "Send ACK packet to client." << endl;
+		}
 
-		}	else if (opCodeRcv == OP_DATA) {
-			cout<< "Recieved DATA packet." << endl;
-			opCodePtr++;
-			unsigned short *blockNumPtr = opCodePtr;
-			blockNumber = ntohs(*blockNumPtr);
-			char *fileData = buffer + DATA_OFFSET;
-			char file[MAXLINE];
-			bcopy(fileData, file, sizeof(buffer) - DATA_OFFSET);
-			ofstream output(writeToFile);
-			int i = 0;
-			while (file[i] != 0) {
-				output << file[i];
-				i++;
-			}
-			cout << "Wrote DATA packet contents to file." << endl;
-
-			char ackBuffer[4];
-			bzero(ackBuffer, 4);			
-			unsigned short *opPtr = (unsigned short*) ackBuffer;
-			*opPtr = htons(OP_ACK);
-			opPtr++; 
-			
-			unsigned short *blockPtr = opPtr;
-			*blockPtr = htons(blockNumber);
-			if (sendto(sockfd, ackBuffer, 4, 0, &pcli_addr, clilen) != sizeof(ackBuffer)) {
-				printf("%s: sendto error\n",progname);
-				exit(4);
-			}
-			cout << "Server sent ACK packet of block #" << blockNumber << " to client." << endl;
+		// Send last ACK packet to acknowledge last packet was recieved
+		char ackBuffer[4];
+		bzero(ackBuffer, 4);			
+		unsigned short *opPtr = (unsigned short*) ackBuffer;
+		*opPtr = htons(OP_ACK);
+		opPtr++; 
+		unsigned short *blockPtr = opPtr;
+		*blockPtr = htons(blockNumber);
+		if (sendto(sockfd, ackBuffer, sizeof(ackBuffer), 0, &pcli_addr, clilen) != sizeof(ackBuffer)) {
+			printf("%s: sendto error with last ack packet\n",progname);
+			exit(4);
 		}
 	}
+	cout << endl;
+	cout << "Done recieving all data packets." << endl;
+	cout << "File should be fully downloaded." << endl;
+	cout << endl;
+	return;
+
+	// Server is asking to write to client
+	if (strcmp(argv[1], "-w") == 0) {
+		// Send write request packet
+		char wrqBuffer[MAX_BUFFER_SIZE];
+		bzero(wrqBuffer, sizeof(wrqBuffer));
+		unsigned short *opCodeSendPtr = (unsigned short*) wrqBuffer;
+		*opCodeSendPtr = htons(OP_WRQ);
+		opCodeSendPtr++;
+		char *fileNamePtr = wrqBuffer + 2;
+		memcpy(fileNamePtr, argv[2], strlen(argv[2]));
+		if (sendto(sockfd, wrqBuffer, 4, 0, &pcli_addr, clilen) != sizeof(wrqBuffer)) {
+			printf("%s: sendto error on socket\n",progname);
+			exit(3);
+		}
+
+		// Recieve acknowledgement packet
+		char ackBuffer[MAX_BUFFER_SIZE];
+		bzero(ackBuffer, sizeof(ackBuffer));
+		int n = recvfrom(sockfd, ackBuffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen);
+		if (n < 0) {
+			printf("%s: recvfrom error\n",progname);
+			exit(4);
+		}
+		unsigned short *opCodePtrRcv = (unsigned short*) ackBuffer;
+		unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
+		if (opCodeRcv == OP_ACK) {
+			opCodePtrRcv++;
+			unsigned short *blockNumPtr = opCodePtrRcv;
+			blockNumber = ntohs(*blockNumPtr);
+			cout << "Recieved Ack #" << blockNumber << endl;
+		}
+
+		/* Send out the data packet created from the file by 		*/
+		/* creating a buffer and constructing a data packet as per	*/
+		/* TFTP protocol rfc1350 where a data packet has an opcode      */
+		/* (3), a block number, and data. 				*/
+		//open file, read in entire contents of file to contents string
+		std::ifstream in(argv[2]);
+		vector<char> contents((istreambuf_iterator<char>(in)), (istreambuf_iterator<char>()));
+		//pointer to iterate 512 bytes for each packet 
+		unsigned short *contentPtr = &contents;
+		for (int i = 0; i < contents.size(); i += 512) {
+			char buffer[MAX_BUFFER_SIZE];
+			bzero(buffer, sizeof(buffer));
+			unsigned short *opCodePtr = (unsigned short*) buffer;
+			*opCodePtr = htons(OP_DATA);
+			opCodePtr++;
+			unsigned short *blockNumPtr = opCodePtr;
+			*blockNumPtr = htons(blockNumber);
+			blockNumber++;
+			char *fileData = buffer + DATA_OFFSET;
+			char file[512];
+			if(i + 512 > contents.size()) {
+				vector<char> newContents(contents.begin() + 1, contents.end());
+			}
+			else {
+				vector<char> newContents(contents.begin() + i, contents.begin() + i + 512);
+			}
+			copy(newContents.begin(), newContents.end(), file);
+			bcopy(file, fileData, sizeof(file));
+			if (sendto(sockfd, buffer, 4, 0, &pcli_addr, clilen) != sizeof(buffer)) {
+				printf("%s: sendto error on socket\n",progname);
+				exit(3);
+			}
+			cout << "Sent block #" << blockNumber << " of data" << endl;
+
+			char ackBuffer[MAX_BUFFER_SIZE];
+			bzero(ackBuffer, sizeof(ackBuffer));
+			int n = recvfrom(sockfd, ackBuffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen);
+			if (n < 0) {
+				printf("%s: recvfrom error\n",progname);
+				exit(4);
+			}
+			unsigned short *opCodePtrRcv = (unsigned short*) ackBuffer;
+			unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
+			if (opCodeRcv == OP_ACK) {
+				opCodePtrRcv++;
+				unsigned short *blockNumPtr = opCodePtrRcv;
+				blockNumber = ntohs(*blockNumPtr);
+				cout << "Recieved Ack #" << blockNumber << endl;
+			}	
+		}
+
+		// Send last empty data packet 
+		char buffer[MAX_BUFFER_SIZE];
+		bzero(buffer, sizeof(buffer));
+		unsigned short *opCodePtr = (unsigned short*) buffer;
+		*opCodePtr = htons(OP_DATA);
+		opCodePtr++;
+		unsigned short *blockNumPtr = opCodePtr;
+		*blockNumPtr = htons(blockNumber);
+		blockNumber++;
+		if (sendto(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != sizeof(buffer)) {
+			printf("%s: sendto error on socket\n",progname);
+			exit(3);
+		}
+
+		// Recieve last ack packet from client
+		char ackBuffer[MAX_BUFFER_SIZE];
+			bzero(ackBuffer, sizeof(ackBuffer));
+			int n = recvfrom(sockfd, ackBuffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen);
+			if (n < 0) {
+				printf("%s: recvfrom error\n",progname);
+				exit(4);
+			}
+		unsigned short *opCodePtrRcv = (unsigned short*) ackBuffer;
+		unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
+		if (opCodeRcv == OP_ACK) {
+			opCodePtrRcv++;
+			unsigned short *blockNumPtr = opCodePtrRcv;
+			blockNumber = ntohs(*blockNumPtr);
+			cout << "Recieved Ack #" << blockNumber << endl;
+		}	
+		cout << "Write Request finished" << endl;
+		return;
+	}
+	cout << "Couldn't enter any of the conditionals. Something went wrong." << endl;
 }
 
 /* Main driver program. Initializes server's socket and calls the  */
