@@ -12,6 +12,7 @@
 #include <signal.h>         // for the signal handler registration.
 #include <unistd.h>
 #include <fstream>
+#include <vector>
 
 using namespace std;
 
@@ -33,7 +34,7 @@ char *progname;
 #define MAXLINE 512
 
 /* Global variable to hold block number */
-unsigned short blockNumber = 0;
+unsigned short blockNumber = 1;
 
 /* Max length of data is 512 bytes, 2 bytes op code, 2 bytes block  */
 /* number. total 516 bytes.					    */
@@ -121,6 +122,8 @@ int main(int argc, char *argv[]) {
 		/* Recieve data block by creating buffer and parsing it     */
 		/* as per TFTP protocol rfc1350 where a data block has an   */
 		/* opcode (3), a block number, and data.   		    */
+
+		while (true) {
 		char buffer[MAX_BUFFER_SIZE];
 		bzero(buffer, sizeof(buffer));
 		int n = recvfrom(sockfd, buffer, MAXLINE, 0, NULL, NULL);
@@ -128,27 +131,80 @@ int main(int argc, char *argv[]) {
 			 printf("%s: recvfrom error\n",progname);
 			 exit(4);
 		}
-    cout << "got a packet from the server" << endl;
+    	cout << "got a packet from the server" << endl;
 		for ( int i = 0; i < 30; i++ ) {
         	printf("0x%X,", buffer[i]);
     	}
+		//convert buffer to vector
+		vector<char> bufferVector(buffer, buffer + sizeof(buffer) / sizeof(buffer[0]));
+		//if data field is all 0
+		if(bufferVector.end() == find(bufferVector.begin() + DATA_OFFSET, bufferVector.end(), false)) {
+			//last packet, break
+			cout << "Recieved last packet" << endl;
+			break;
+		}
 		cout << endl;
 		unsigned short *opCodePtrRcv = (unsigned short*) buffer;
 		unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
 		if (opCodeRcv == OP_DATA) {
-      cout << "packet was data" << endl;
 			opCodePtrRcv++;
 			unsigned short *blockNumPtr = opCodePtrRcv;
 			blockNumber = ntohs(*blockNumPtr);
+			cout << "Received block #" << blockNumber << " of data" << endl;
 			char *fileData = buffer + DATA_OFFSET;
 			char file[MAXLINE];
-      cout << "about to create file from data packet contents" << endl;
-			memcpy(file, fileData, sizeof(buffer) - DATA_OFFSET);
+			bcopy(fileData, file, sizeof(buffer) - DATA_OFFSET);
 			ofstream output(argv[2]);
-			for (int i = 0; i < sizeof(buffer) - DATA_OFFSET; i++) {
+			int i = 0;
+			while (file[i] != 0) {
 				output << file[i];
+				i++;
 			}
 		}
+		char ackBuffer[4];
+		bzero(ackBuffer, 4);			
+		// Pointer thats pointing to the start of the buffer array
+		unsigned short *opPtr = (unsigned short*) ackBuffer;
+		// convert from network order
+		*opPtr = htons(OP_ACK);
+		// pointer of op is pointing to start of the buffer array. fill in with op code data.
+		opPtr++; // increment by 1 (unsigned short = 2 bytes), so now pointing to 3rd byte.
+			
+		// Have block pointer point to same as op pointer; the 3rd byte of buffer
+		unsigned short *blockPtr = opPtr;
+		// Fill in the block byte (from 3rd to 4th byte) with block number
+		*blockPtr = htons(blockNumber);
+		for ( int i = 0; i < sizeof(ackBuffer); i++ ) {
+        	printf("0x%X,", ackBuffer[i]);
+    	}
+		cout << endl;
+		if (sendto(sockfd, ackBuffer, sizeof(ackBuffer), 0, &pcli_addr, clilen) != sizeof(ackBuffer)) {
+			printf("%s: sendto error wrq\n",progname);
+			exit(4);
+		}
+	}
+	char ackBuffer[4];
+	bzero(ackBuffer, 4);			
+	// Pointer thats pointing to the start of the buffer array
+	unsigned short *opPtr = (unsigned short*) ackBuffer;
+	// convert from network order
+	*opPtr = htons(OP_ACK);
+	// pointer of op is pointing to start of the buffer array. fill in with op code data.
+	opPtr++; // increment by 1 (unsigned short = 2 bytes), so now pointing to 3rd byte.
+			
+	// Have block pointer point to same as op pointer; the 3rd byte of buffer
+	unsigned short *blockPtr = opPtr;
+	// Fill in the block byte (from 3rd to 4th byte) with block number
+	*blockPtr = htons(blockNumber);
+	for ( int i = 0; i < sizeof(ackBuffer); i++ ) {
+        	printf("0x%X,", ackBuffer[i]);
+    }
+		cout << endl;
+	if (sendto(sockfd, ackBuffer, sizeof(ackBuffer), 0, &pcli_addr, clilen) != sizeof(ackBuffer)) {
+		printf("%s: sendto error wrq\n",progname);
+		exit(4);
+	}
+	cout << "Read Request done" << endl;
 	}
   /* The user has initialized a read request on the client side.	*/
 	else if (strcmp(argv[1], "-w") == 0) {
@@ -161,13 +217,13 @@ int main(int argc, char *argv[]) {
 		unsigned short *opCodeSendPtr = (unsigned short*) wrqBuffer;
 		*opCodeSendPtr = htons(OP_WRQ);
 		opCodeSendPtr++;
-		string *fileNamePtr = (string*) opCodeSendPtr;
-		*fileNamePtr = argv[2]; // Change to put in string into char array by each char
-		if (sendto(sockfd, fileNamePtr, sizeof(wrqBuffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != sizeof(wrqBuffer)) {
+		char *fileNamePtr = wrqBuffer + 2;
+		memcpy(fileNamePtr, argv[2], strlen(argv[2]));
+		if (sendto(sockfd, wrqBuffer, sizeof(wrqBuffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != sizeof(wrqBuffer)) {
 			printf("%s: sendto error on socket\n",progname);
 			exit(3);
 		}
-
+		cout << "Send write request to server" << endl;
 		/* Recieve acknowledgment packet by creating buffer and 	*/
 		/* parsing it as per TFTP protocol rfc1350 where an 		*/
 		/* acknowledgement packet has an opcode (4) and a block 	*/
@@ -185,12 +241,60 @@ int main(int argc, char *argv[]) {
 			opCodePtrRcv++;
 			unsigned short *blockNumPtr = opCodePtrRcv;
 			blockNumber = ntohs(*blockNumPtr);
+			cout << "Recieved Ack #" << blockNumber << endl;
 		}
 
 		/* Send out the data packet created from the file by 		*/
 		/* creating a buffer and constructing a data packet as per	*/
 		/* TFTP protocol rfc1350 where a data packet has an opcode      */
 		/* (3), a block number, and data. 				*/
+
+		//open file, read in entire contents of file to contents string
+		std::ifstream in(argv[2]);
+		vector<char> contents((istreambuf_iterator<char>(in)), (istreambuf_iterator<char>()));
+		//pointer to iterate 512 bytes for each packet 
+		unsigned short *contentPtr = &contents;
+		for (int i = 0; i < contents.size(); i += 512) {
+			char buffer[MAX_BUFFER_SIZE];
+			bzero(buffer, sizeof(buffer));
+			unsigned short *opCodePtr = (unsigned short*) buffer;
+			*opCodePtr = htons(OP_DATA);
+			opCodePtr++;
+			unsigned short *blockNumPtr = opCodePtr;
+			*blockNumPtr = htons(blockNumber);
+			blockNumber++;
+			char *fileData = buffer + DATA_OFFSET;
+			char file[512];
+			if(i + 512 > contents.size()) {
+				vector<char> newContents(contents.begin() + 1, contents.end());
+			}
+			else {
+				vector<char> newContents(contents.begin() + i, contents.begin() + i + 512);
+			}
+			copy(newContents.begin(), newContents.end(), file);
+			bcopy(file, fileData, sizeof(file));
+			if (sendto(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != sizeof(buffer)) {
+				printf("%s: sendto error on socket\n",progname);
+				exit(3);
+			}
+			cout << "Sent block #" << blockNumber << " of data" << endl;
+
+			char ackBuffer[MAX_BUFFER_SIZE];
+			bzero(ackBuffer, sizeof(ackBuffer));
+			int n = recvfrom(sockfd, ackBuffer, MAXLINE, 0, NULL, NULL);
+			if (n < 0) {
+				printf("%s: recvfrom error\n",progname);
+				exit(4);
+			}
+			unsigned short *opCodePtrRcv = (unsigned short*) ackBuffer;
+			unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
+			if (opCodeRcv == OP_ACK) {
+				opCodePtrRcv++;
+				unsigned short *blockNumPtr = opCodePtrRcv;
+				blockNumber = ntohs(*blockNumPtr);
+				cout << "Recieved Ack #" << blockNumber << endl;
+			}	
+		}
 		char buffer[MAX_BUFFER_SIZE];
 		bzero(buffer, sizeof(buffer));
 		unsigned short *opCodePtr = (unsigned short*) buffer;
@@ -199,17 +303,28 @@ int main(int argc, char *argv[]) {
 		unsigned short *blockNumPtr = opCodePtr;
 		*blockNumPtr = htons(blockNumber);
 		blockNumber++;
-		char *fileData = buffer + DATA_OFFSET;
-		std::ifstream in(argv[2]);
-		std::string contents((std::istreambuf_iterator<char>(in)), 
-    	std::istreambuf_iterator<char>());
-		char file[contents.size()];
-    strcpy(file, contents.c_str());
-		memcpy(fileData, file, strlen(file));
-		if (sendto(sockfd, fileData, strlen(fileData), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != strlen(fileData)) {
+		if (sendto(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != sizeof(buffer)) {
 			printf("%s: sendto error on socket\n",progname);
 			exit(3);
 		}
+
+		char ackBuffer[MAX_BUFFER_SIZE];
+			bzero(ackBuffer, sizeof(ackBuffer));
+			int n = recvfrom(sockfd, ackBuffer, MAXLINE, 0, NULL, NULL);
+			if (n < 0) {
+				printf("%s: recvfrom error\n",progname);
+				exit(4);
+			}
+		unsigned short *opCodePtrRcv = (unsigned short*) ackBuffer;
+		unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
+		if (opCodeRcv == OP_ACK) {
+			opCodePtrRcv++;
+			unsigned short *blockNumPtr = opCodePtrRcv;
+			blockNumber = ntohs(*blockNumPtr);
+			cout << "Recieved Ack #" << blockNumber << endl;
+		}	
+
+		cout << "Write Request finished" << endl;
 	}
   cout<<"end of all conditionals" <<endl;
 
