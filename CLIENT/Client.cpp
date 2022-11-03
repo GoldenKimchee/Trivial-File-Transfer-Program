@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <fstream>
 #include <vector>
+#include <algorithm>
 
 using namespace std;
 
@@ -111,7 +112,7 @@ int main(int argc, char *argv[]) {
 		char *fileNamePtr = rrqBuffer + 2;
 		memcpy(fileNamePtr, argv[2], strlen(argv[2]));
 
-    	cout << "about to send to the server" << endl;
+
 		if (sendto(sockfd, rrqBuffer, sizeof(rrqBuffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != sizeof(rrqBuffer)) {
 			printf("%s: sendto error on socket\n",progname);
 			exit(3);
@@ -129,15 +130,12 @@ int main(int argc, char *argv[]) {
 			 exit(4);
 		}
 
-    	cout << "got a packet from the server" << endl;
-		for ( int i = 0; i < 30; i++ ) {
-        	printf("0x%X,", buffer[i]);
-    	}
 		//convert buffer to vector
 		vector<char> bufferVector(buffer, buffer + sizeof(buffer) / sizeof(buffer[0]));
 		//if data field is all 0
 		vector<char> newBuffer(bufferVector.begin() + DATA_OFFSET, bufferVector.end());
-		if(newBuffer.empty()) {
+		bool is_clear = all_of(newBuffer.cbegin(), newBuffer.cend(), [](unsigned char c) {return c == 0; });
+		if(is_clear) {
 			//last packet, break
 			cout << "Recieved last packet" << endl;
 			break;
@@ -173,9 +171,6 @@ int main(int argc, char *argv[]) {
 		unsigned short *blockPtr = opPtr;
 		// Fill in the block byte (from 3rd to 4th byte) with block number
 		*blockPtr = htons(blockNumber);
-		for ( int i = 0; i < sizeof(ackBuffer); i++ ) {
-        	printf("0x%X,", ackBuffer[i]);
-    	}
 		cout << endl;
 		if (sendto(sockfd, ackBuffer, sizeof(ackBuffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != sizeof(ackBuffer)) {
 			printf("%s: sendto error wrq\n",progname);
@@ -238,7 +233,6 @@ int main(int argc, char *argv[]) {
 			blockNumber = ntohs(*blockNumPtr);
 			cout << "Recieved Ack #" << blockNumber << endl;
 		}
-
 		/* Send out the data packet created from the file by 		*/
 		/* creating a buffer and constructing a data packet as per	*/
 		/* TFTP protocol rfc1350 where a data packet has an opcode      */
@@ -248,6 +242,7 @@ int main(int argc, char *argv[]) {
 		std::ifstream in(argv[2]);
 		vector<char> contents((istreambuf_iterator<char>(in)), (istreambuf_iterator<char>()));
 		for (int i = 0; i < contents.size(); i += 512) {
+			blockNumber++;
 			char buffer[MAX_BUFFER_SIZE];
 			bzero(buffer, sizeof(buffer));
 			unsigned short *opCodePtr = (unsigned short*) buffer;
@@ -255,11 +250,10 @@ int main(int argc, char *argv[]) {
 			opCodePtr++;
 			unsigned short *blockNumPtr = opCodePtr;
 			*blockNumPtr = htons(blockNumber);
-			blockNumber++;
 			char *fileData = buffer + DATA_OFFSET;
 			char file[512];
 			if(i + 512 > contents.size()) {
-				vector<char> newContents(contents.begin() + 1, contents.end());
+				vector<char> newContents(contents.begin(), contents.end());
 				copy(newContents.begin(), newContents.end(), file);
 			}
 			else {
