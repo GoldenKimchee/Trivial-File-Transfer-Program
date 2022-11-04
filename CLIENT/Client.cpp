@@ -42,7 +42,6 @@ unsigned short blockNumber = 1;
 const static int MAX_BUFFER_SIZE = 516;
 
 int main(int argc, char *argv[]) {
-  cout<<"start of main"<<endl;
 	int sockfd;
 	
 /* We need to set up two addresses, one for the client and one for */
@@ -97,7 +96,6 @@ int main(int argc, char *argv[]) {
 		printf("%s: can't bind local address\n",progname);
 		exit(2);
 	}
-	cout<<"just before the -r and -w conditionals" << endl;
 	/* The user has initialized a read request on the client side.	*/
 	if (strcmp(argv[1], "-r") == 0) {
     	cout << "Start read request" << endl;
@@ -121,15 +119,15 @@ int main(int argc, char *argv[]) {
 		/* Recieve data block by creating buffer and parsing it     */
 		/* as per TFTP protocol rfc1350 where a data block has an   */
 		/* opcode (3), a block number, and data.   		    */
+		ofstream output(argv[2]);
 		while (true) {
 		char buffer[MAX_BUFFER_SIZE];
 		bzero(buffer, sizeof(buffer));
-		int n = recvfrom(sockfd, buffer, MAXLINE, 0, NULL, NULL);
+		int n = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, NULL, NULL);
 		if (n < 0) {
 			 printf("%s: recvfrom error\n",progname);
 			 exit(4);
 		}
-
 		//convert buffer to vector
 		vector<char> bufferVector(buffer, buffer + sizeof(buffer) / sizeof(buffer[0]));
 		//if data field is all 0
@@ -151,7 +149,6 @@ int main(int argc, char *argv[]) {
 			char *fileData = buffer + DATA_OFFSET;
 			char file[MAXLINE];
 			bcopy(fileData, file, sizeof(buffer) - DATA_OFFSET);
-			ofstream output(argv[2]);
 			int i = 0;
 			while (file[i] != 0) {
 				output << file[i];
@@ -252,15 +249,12 @@ int main(int argc, char *argv[]) {
 			*blockNumPtr = htons(blockNumber);
 			char *fileData = buffer + DATA_OFFSET;
 			char file[512];
-			if(i + 512 > contents.size()) {
-				vector<char> newContents(contents.begin(), contents.end());
-				copy(newContents.begin(), newContents.end(), file);
-			}
-			else {
-				vector<char> newContents(contents.begin() + i, contents.begin() + i + 512);
-				copy(newContents.begin(), newContents.end(), file);
-			}
+
+			vector<char> newContents(contents.begin() + i, contents.begin() + i + 512);
+			copy(newContents.begin(), newContents.end(), file);
+
 			bcopy(file, fileData, sizeof(file));
+
 			if (sendto(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != sizeof(buffer)) {
 				printf("%s: sendto error on socket\n",progname);
 				exit(3);
@@ -269,7 +263,7 @@ int main(int argc, char *argv[]) {
 
 			char ackBuffer[MAX_BUFFER_SIZE];
 			bzero(ackBuffer, sizeof(ackBuffer));
-			int n = recvfrom(sockfd, ackBuffer, MAXLINE, 0, NULL, NULL);
+			int n = recvfrom(sockfd, ackBuffer, MAX_BUFFER_SIZE, 0, NULL, NULL);
 			if (n < 0) {
 				printf("%s: recvfrom error\n",progname);
 				exit(4);
@@ -308,7 +302,6 @@ int main(int argc, char *argv[]) {
 		if (wrqOpCodeRcv == OP_ACK) {
 			wrqOpCodePtrRcv++;
 			unsigned short *blockNumPtr = opCodePtrRcv;
-			blockNumber = ntohs(*blockNumPtr);
 			cout << "Recieved Ack #" << blockNumber << endl;
 		}	
 

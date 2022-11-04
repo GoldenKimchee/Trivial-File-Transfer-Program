@@ -123,20 +123,11 @@ void dg_echo(int sockfd) {
 				*blockNumPtr = htons(blockNumber);
 				char *fileData = buffer + DATA_OFFSET;
 				char file[512];
-				if(i + 512 > contents.size()) {
-					vector<char> newContents(contents.begin(), contents.end());
-					copy(newContents.begin(), newContents.end(), file);
-				}
-				else {
-					vector<char> newContents(contents.begin() + i, contents.begin() + i + 512);
-					copy(newContents.begin(), newContents.end(), file);
-				}
+
+				vector<char> newContents(contents.begin() + i, contents.begin() + i + 512);
+				copy(newContents.begin(), newContents.end(), file);
+
 				bcopy(file, fileData, sizeof(file));
-				cout << "--------------" << endl;
-				for ( int i = 0; i < sizeof(file); i++ ) {
-       			 	cout << file[i];
-   				}
-				cout << endl << "--------------" << endl;
 				if (sendto(sockfd, buffer, sizeof(buffer), 0, &pcli_addr, clilen) != sizeof(buffer)) {
 					printf("%s: sendto error on socket\n",progname);
 					exit(3);
@@ -189,11 +180,12 @@ void dg_echo(int sockfd) {
 			rrqOpCodePtrRcv++;
 			unsigned short *blockNumPtr = rrqOpCodePtrRcv;
 			blockNumber = ntohs(*blockNumPtr);
+			blockNumber++;
 			cout << "Recieved Ack #" << blockNumber << endl;
 		}	
 
 		cout << "Server is done processing read request for client." << endl;
-
+		blockNumber = 0;
 		}	else if (opCodeRcv == OP_ACK) {
 
 			cout<< "Recieved ACK packet." << endl;
@@ -231,11 +223,13 @@ void dg_echo(int sockfd) {
 			cout << "Server sent ACK packet of block #" << blockNumber << " to client." << endl;
 
 		// Continue to recieve DATA packets and send corresponding ACK packets to client
+		ofstream output(filename);
 		while (true) {
 		// Recieve DATA packet
 		char buffer[MAX_BUFFER_SIZE];
 		bzero(buffer, sizeof(buffer));
 		int n = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen);
+
 		if (n < 0) {
 			 printf("%s: recvfrom error\n",progname);
 			 exit(4);
@@ -244,10 +238,6 @@ void dg_echo(int sockfd) {
 		vector<char> bufferVector(buffer, buffer + sizeof(buffer) / sizeof(buffer[0]));
 		//if data field is all 0
 		vector<char> newBuffer(bufferVector.begin() + DATA_OFFSET, bufferVector.end());
-		for (int i = 0; i < newBuffer.size(); i++) {
-			cout << newBuffer.at(i);
-		}
-		cout << endl;
 		bool is_clear = all_of(newBuffer.cbegin(), newBuffer.cend(), [](unsigned char c) {return c == 0; });
 		if(is_clear) {
 			//last packet, break
@@ -265,7 +255,6 @@ void dg_echo(int sockfd) {
 			char *fileData = buffer + DATA_OFFSET;
 			char file[MAXLINE];
 			bcopy(fileData, file, sizeof(buffer) - DATA_OFFSET);
-			ofstream output(filename);
 			int i = 0;
 			while (file[i] != 0) {
 				output << file[i];
@@ -294,7 +283,6 @@ void dg_echo(int sockfd) {
 	unsigned short *finalOpPtr = (unsigned short*) finalAckBuffer;
 	*finalOpPtr = htons(OP_ACK);
 	finalOpPtr++; 
-	cout << "Block number before sending final ack: " << blockNumber << endl;
 	unsigned short *finalBlockPtr = finalOpPtr;
 	*finalBlockPtr = htons(blockNumber);
 	if (sendto(sockfd, finalAckBuffer, sizeof(finalAckBuffer), 0, &pcli_addr, clilen) != sizeof(finalAckBuffer)) {
@@ -302,7 +290,7 @@ void dg_echo(int sockfd) {
 		exit(4);
 	}
 	cout << "Server is done processing write request for client." << endl;
-
+	blockNumber = 0;
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
