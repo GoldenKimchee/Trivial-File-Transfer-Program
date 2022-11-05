@@ -1,2 +1,2 @@
-# CSS432
-TFTP project
+# TFTP Program
+TFTP project for CSS432
