@@ -392,7 +392,12 @@ int main(int argc, char *argv[]) {
 /* We must use a specific port for our server for the client to    */
 /* send data to (a well-known port).                               */
 
-	serv_addr.sin_port        = htons(SERV_UDP_PORT);
+// Specify port number at runtime from command line
+	if (argc == 3) {
+		serv_addr.sin_port = htons(stoi(argv[2]));
+	} else {
+		serv_addr.sin_port        = htons(SERV_UDP_PORT);
+	}
 
 /* We initialize the socket pointed to by sockfd by binding to it  */
 /* the address and port information from serv_addr. Note that we   */
