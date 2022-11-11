@@ -90,12 +90,6 @@ void dg_echo(int sockfd) {
 		unsigned short opCodeRcv = ntohs(*opCodePtr);
 		// if conditionals checking OP code to decide how to process remaining buffer array
 
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		// The code in this block is the code for step 2
-		
-		
 		if (opCodeRcv == OP_RRQ) { // Got read request
 			cout<< "Recieved RRQ packet." << endl;
 			blockNumber = 1;
@@ -382,42 +376,8 @@ void dg_echo(int sockfd) {
 	}
 	cout << "Server is done processing write request for client." << endl;
 	blockNumber = 0;
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		
-		
-		
-		}	else if (opCodeRcv == OP_DATA) {
-			cout<< "Recieved DATA packet." << endl;
-			opCodePtr++;
-			unsigned short *blockNumPtr = opCodePtr;
-			blockNumber = ntohs(*blockNumPtr);
-			char *fileData = buffer + DATA_OFFSET;
-			char file[MAXLINE];
-			bcopy(fileData, file, sizeof(buffer) - DATA_OFFSET);
-			ofstream output(writeToFile);
-			int i = 0;
-			while (file[i] != 0) {
-				output << file[i];
-				i++;
-			}
-			cout << "Wrote DATA packet contents to file." << endl;
-
-			char ackBuffer[4];
-			bzero(ackBuffer, 4);			
-			unsigned short *opPtr = (unsigned short*) ackBuffer;
-			*opPtr = htons(OP_ACK);
-			opPtr++; 
-			
-			unsigned short *blockPtr = opPtr;
-			*blockPtr = htons(blockNumber);
-			if (sendto(sockfd, ackBuffer, 4, 0, &pcli_addr, clilen) != sizeof(ackBuffer)) {
-				printf("%s: sendto error\n",progname);
-				exit(4);
-			}
-			cout << "Server sent ACK packet of block #" << blockNumber << " to client." << endl;
-		}
+		}	
 	}
 }
 
