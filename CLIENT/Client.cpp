@@ -199,6 +199,13 @@ int main(int argc, char *argv[]) {
 		/* Send out a read request by creating a read request    */
 		/* as per TFTP protocol rfc1350 with opcode rrq and      */	
 		/* filename. 					         */
+		
+		// Check if file does not exist
+		if (!filesystem::exists(argv[2])) {
+			cout << "File does not exist." << endl;
+			break;
+		}
+
 		char wrqBuffer[MAX_BUFFER_SIZE];
 		bzero(wrqBuffer, sizeof(wrqBuffer));
 		unsigned short *opCodeSendPtr = (unsigned short*) wrqBuffer;

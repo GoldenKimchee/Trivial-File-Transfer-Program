@@ -208,6 +208,11 @@ void dg_echo(int sockfd) {
 			}
 			writeToFile = filename;
 
+			// File already exists (overwrite warning)
+			if (!filesystem::exists(filename)) {
+				cout << "File already exists.\nFile will be overwritten!" << endl;
+			}
+
 			// Send ACK packet to client
 			char ackBuffer[4];
 			bzero(ackBuffer, 4);			
