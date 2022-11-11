@@ -59,7 +59,13 @@ int main(int argc, char *argv[]) {
 /* use inet_addr to convert the dotted decimal notation to it.     */
 
 	serv_addr.sin_addr.s_addr = inet_addr(SERV_HOST_ADDR);
-	serv_addr.sin_port = htons(SERV_UDP_PORT);
+	if (argc == 5) {
+		serv_add.sin_port = htons(argv[4])
+	}
+	else {
+		serv_addr.sin_port = htons(SERV_UDP_PORT);
+	}
+
 
 /* Create the socket for the client side.                          */
 	
@@ -155,6 +161,21 @@ int main(int argc, char *argv[]) {
 				i++;
 			}
 		}
+		else if (opCodeRcv == OP_ERROR) {
+			opCodePtr++;
+			unsigned short *errorCodePtr = opCodePtrRcv;
+			unsigned short errorCode = ntohs(*errorCodePtr);
+			char *errorMessageData = buffer + DATA_OFFSET;
+			char errorMessage[MAXLINE];
+			bcopy(errorMessageData, errorMessage, sizeof(buffer) - DATA_OFFSET);
+			int i = 0;
+			while (errorMessage[i] != 0) {
+				cout << errorMessage[i];
+				i++
+			}
+			cout << endl;
+			break;
+		}
 		char ackBuffer[4];
 		bzero(ackBuffer, 4);			
 		// Pointer thats pointing to the start of the buffer array
@@ -202,7 +223,7 @@ int main(int argc, char *argv[]) {
 		
 		// Check if file does not exist
 		if (!filesystem::exists(argv[2])) {
-			cout << "File does not exist." << endl;
+			cout << "File " << argv[2] << " does not exist." << endl;
 			break;
 		}
 
