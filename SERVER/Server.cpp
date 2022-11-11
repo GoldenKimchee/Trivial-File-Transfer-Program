@@ -110,6 +110,13 @@ void dg_echo(int sockfd) {
 				i++;
 			}
 
+			// No permission to access the requested file
+			// In the case that the file on server is not readable
+			if (access(filepath, R_OK) != 0) {
+				cout << filename << " does not have read permissions." << endl;
+				break;
+			}
+
 			// Send data block to client
 			std::ifstream in(filename);
 			vector<char> contents((istreambuf_iterator<char>(in)), (istreambuf_iterator<char>()));
