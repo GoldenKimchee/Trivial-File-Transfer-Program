@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <vector>
 #include <algorithm>
+#include <filesystem>
 
 using namespace std;
 
@@ -103,10 +104,8 @@ void dg_echo(int sockfd) {
 				filename = filename + a[i];
 				i++;
 			}
-
 			// File that the client wants to read does not exist
-			fstream fileCheck(filename);
-			if (!fileCheck.good()) {
+			if (!filesystem::exists(filename)) {
 				cout << "Client wants to read a file that does not exist." << endl;
 
 				// Build error packet with error message
@@ -131,10 +130,9 @@ void dg_echo(int sockfd) {
 				cout << "Sent a error packet to client." << endl;
 				break;
 			}
-
 			// No permission to access the requested file
 			// In the case that the file on server is not readable
-			if (access(filename.c_str(), R_OK) != 0) {
+			else if (access(filename.c_str(), R_OK) != 0) {
 				cout << filename << " does not have read permissions." << endl;
 
 				// Build error packet with error message
@@ -161,7 +159,6 @@ void dg_echo(int sockfd) {
 				cout << "Sent a error packet to client." << endl;
 				break;
 			}
-			fileCheck.close();
 			// Send data block to client
 			std::ifstream in(filename);
 			vector<char> contents((istreambuf_iterator<char>(in)), (istreambuf_iterator<char>()));
