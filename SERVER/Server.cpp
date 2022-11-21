@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <vector>
 #include <algorithm>
+#include <filesystem>
 
 using namespace std;
 
@@ -118,7 +119,6 @@ void dg_echo(int sockfd) {
 				filename = filename + a[i];
 				i++;
 			}
-
 			// File that the client wants to read does not exist
 			if (!filesystem::exists(filename)) {
 				cout << "Client wants to read a file that does not exist." << endl;
@@ -134,12 +134,9 @@ void dg_echo(int sockfd) {
 				*blockNumPtr = htons(1);
 				char *fileData = buffer + DATA_OFFSET;
 				string errorMsg = "File was not found in the server.";
-				// Starting at 5th byte of packet, fill in bytes of error message string
-				for (int i = 0; i < errorMsg.length(); i++) {
-						fileData = htons(errorMsg.at(i)); // Take each char and put in current byte
-						fileData++; // Move to next byte of packet
-				}     
-
+				char msg[512];
+				strcpy(msg, errorMsg.c_str());
+				bcopy(msg, fileData, sizeof(msg));
 				if (sendto(sockfd, buffer, sizeof(buffer), 0, &pcli_addr, clilen) != sizeof(buffer)) {
 					printf("%s: sendto error on socket\n",progname);
 					exit(5);
@@ -148,10 +145,9 @@ void dg_echo(int sockfd) {
 				cout << "Sent a error packet to client." << endl;
 				break;
 			}
-
 			// No permission to access the requested file
 			// In the case that the file on server is not readable
-			if (access(filepath, R_OK) != 0) {
+			else if (access(filename.c_str(), R_OK) != 0) {
 				cout << filename << " does not have read permissions." << endl;
 
 				// Build error packet with error message
@@ -166,10 +162,9 @@ void dg_echo(int sockfd) {
 				char *fileData = buffer + DATA_OFFSET;
 				string errorMsg = "File does not have read permissions.";
 				// Starting at 5th byte of packet, fill in bytes of error message string
-				for (int i = 0; i < errorMsg.length(); i++) {
-						fileData = htons(errorMsg.at(i)); // Take each char and put in current byte
-						fileData++; // Move to next byte of packet
-				}
+				char msg[512];
+				strcpy(msg, errorMsg.c_str());
+				bcopy(msg, fileData, sizeof(msg));
 				
 				if (sendto(sockfd, buffer, sizeof(buffer), 0, &pcli_addr, clilen) != sizeof(buffer)) {
 					printf("%s: sendto error on socket\n",progname);
@@ -179,7 +174,6 @@ void dg_echo(int sockfd) {
 				cout << "Sent a error packet to client." << endl;
 				break;
 			}
-
 			// Send data block to client
 			std::ifstream in(filename);
 			vector<char> contents((istreambuf_iterator<char>(in)), (istreambuf_iterator<char>()));
@@ -285,7 +279,8 @@ void dg_echo(int sockfd) {
 			writeToFile = filename;
 
 			// File already exists (overwrite warning)
-			if (filesystem::exists(filename)) {
+			ifstream fileCheck(filename.c_str());
+			if (fileCheck.good()) {
 				cout << "Client wants to write to a file that already exists." << endl;
 
 				// Build error packet with error message
@@ -299,11 +294,9 @@ void dg_echo(int sockfd) {
 				*blockNumPtr = htons(6);
 				char *fileData = buffer + DATA_OFFSET;
 				string errorMsg = "File already exists in the server. File was not overwritten";
-				// Starting at 5th byte of packet, fill in bytes of error message string
-				for (int i = 0; i < errorMsg.length(); i++) {
-						fileData = htons(errorMsg.at(i)); // Take each char and put in current byte
-						fileData++; // Move to next byte of packet
-				}
+				char msg[512];
+				strcpy(msg, errorMsg.c_str());
+				bcopy(msg, fileData, sizeof(msg));
 				
 				if (sendto(sockfd, buffer, sizeof(buffer), 0, &pcli_addr, clilen) != sizeof(buffer)) {
 					printf("%s: sendto error on socket\n",progname);
@@ -313,7 +306,7 @@ void dg_echo(int sockfd) {
 				cout << "Sent a error packet to client." << endl;
 				break;
 			}
-
+			fileCheck.close();
 			// Send ACK packet to client
 			char ackBuffer[4];
 			bzero(ackBuffer, 4);			
