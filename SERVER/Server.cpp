@@ -32,6 +32,12 @@ char *progname;
 /* Global variable to hold block number */
 unsigned short blockNumber = 0;
 
+/* Global variable to hold number of consecutive timeouts */
+int totalTimeouts = 0;
+
+/* Global variable to hold number of seconds till timeout */
+unsigned int timeout = 3;
+
 /* Max length of data is 512 bytes, 2 bytes op code, 2 bytes block number. total 516 bytes. */
 const static int MAX_BUFFER_SIZE = 516;
 
@@ -43,6 +49,11 @@ string writeToFile;
 /* Size of maximum packet to received.                            */
 
 #define MAXMESG 2048
+
+// Handler for the SIGALRM signal
+void handler(int signum) {
+	cout << "Interrupt signal (" << signum << ") received" << endl;
+}
 
 /* The dg_echo function receives data from the already initialized */
 /* socket sockfd and returns them to the sender.                   */
@@ -61,6 +72,10 @@ void dg_echo(int sockfd) {
 	int    n, clilen;
 	char buffer[MAX_BUFFER_SIZE];
 	bzero(buffer, sizeof(buffer));
+
+	// Handle SIGALRM signal 
+	// Returns a pointer to the previous handler associated with this signal
+	signal(SIGALRM, handler);
 
 /* Main echo server loop. Note that it never terminates, as there  */
 /* is no way for UDP to know when the data are finished.           */
@@ -123,7 +138,7 @@ void dg_echo(int sockfd) {
 				for (int i = 0; i < errorMsg.length(); i++) {
 						fileData = htons(errorMsg.at(i)); // Take each char and put in current byte
 						fileData++; // Move to next byte of packet
-				}
+				}     
 
 				if (sendto(sockfd, buffer, sizeof(buffer), 0, &pcli_addr, clilen) != sizeof(buffer)) {
 					printf("%s: sendto error on socket\n",progname);
@@ -192,7 +207,13 @@ void dg_echo(int sockfd) {
 				// Recieve ACK packet from client
 				char ackBuffer[MAX_BUFFER_SIZE];
 				bzero(ackBuffer, sizeof(ackBuffer));
+				// Set a timer now. x = previous remaining interval
+				unsigned int x = alarm(timeout);
+				// If timed out at 3 seconds (timeout) we recieve SIGALRM.
+				// HOW DO WE KNOW WHICH PACKET TO RESEND AFTER SIGALRM IS TRIGGERED??
 				int n = recvfrom(sockfd, ackBuffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen);
+				// Recieved from client. Reset timer 
+				alarm(0);
 				if (n < 0) {
 					printf("%s: recvfrom error\n",progname);
 					exit(4);
