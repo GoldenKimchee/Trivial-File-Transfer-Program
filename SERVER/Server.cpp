@@ -51,9 +51,29 @@ string writeToFile;
 
 #define MAXMESG 2048
 
-// Handler for the SIGALRM signal
+// Handler for the SIGALRM signal. Increments corresponding global variables.
 void handler(int signum) {
-	cout << "Interrupt signal (" << signum << ") received" << endl;
+	totalTimeouts += 1;  // Increment number of timeouts. Cannot have more than 10.
+	cout << "Timeout occured." << endl;
+}
+
+int register_handler() {
+	int rt_value = 0;
+	// Register the handler function
+	rt_value = (int) signal(SIGALRM, handle_timeout);
+	if (rt_value == (int) SIG_ERR) {
+		printf("Can't register funcction handler.\n");
+		printf("signal() error: %s.\n", strerror(errno));
+		return -1;
+	}
+	// Disable the restart of system call on signal. 
+	// Otherwise OS will be stuck in the system call.
+	rt_value = siginterrupt(SIGARLM, 1);
+	if (rt_value == -1) {
+		printf("invalid sign number.\n");
+		return -1;
+	}
+	return 0;
 }
 
 /* The dg_echo function receives data from the already initialized */
@@ -73,10 +93,6 @@ void dg_echo(int sockfd) {
 	int    n, clilen;
 	char buffer[MAX_BUFFER_SIZE];
 	bzero(buffer, sizeof(buffer));
-
-	// Handle SIGALRM signal 
-	// Returns a pointer to the previous handler associated with this signal
-	signal(SIGALRM, handler);
 
 /* Main echo server loop. Note that it never terminates, as there  */
 /* is no way for UDP to know when the data are finished.           */
