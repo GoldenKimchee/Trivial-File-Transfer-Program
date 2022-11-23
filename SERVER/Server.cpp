@@ -37,7 +37,7 @@ unsigned short blockNumber = 0;
 int totalTimeouts = 0;
 
 /* Global variable to hold number of seconds till timeout */
-unsigned int timeout = 3;
+unsigned int timeout = 2;
 
 /* Max length of data is 512 bytes, 2 bytes op code, 2 bytes block number. total 516 bytes. */
 const static int MAX_BUFFER_SIZE = 516;
@@ -53,6 +53,11 @@ string writeToFile;
 
 // Handler for the SIGALRM signal. Increments corresponding global variables.
 void handler(int signum) {
+	// Terminate the connection after 10 consecutive timeouts
+	if (totalTimeouts == 10) {
+		cout << "10 consecutive timeouts. Terminate program." << endl;
+		exit(7);
+	}
 	totalTimeouts += 1;  // Increment number of timeouts. Cannot have more than 10.
 	cout << "Timeout occured." << endl;
 }
@@ -226,6 +231,7 @@ void dg_echo(int sockfd) {
 					printf("%s: recvfrom error\n",progname);
 					if (errno == EINTR) {  // There was a timeout
 						printf("Timeout has triggered!\n");
+						// Must retransmit packet
 					} else {
 						exit(4);
 					}
