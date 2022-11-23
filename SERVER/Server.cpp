@@ -153,7 +153,7 @@ void dg_echo(int sockfd) {
 				char msg[512];
 				strcpy(msg, errorMsg.c_str());
 				bcopy(msg, fileData, sizeof(msg));
-				if (sendto(sockfd, buffer, sizeof(buffer), 0, &pcli_addr, clilen) != sizeof(buffer)) {
+				if (sendto(sockfd, buffer, sizeof(buffer), 0, &pcli_addr, clilen) != sizeof(buffer)) {			
 					printf("%s: sendto error on socket\n",progname);
 					exit(5);
 				}
@@ -217,16 +217,22 @@ void dg_echo(int sockfd) {
 				// Recieve ACK packet from client
 				char ackBuffer[MAX_BUFFER_SIZE];
 				bzero(ackBuffer, sizeof(ackBuffer));
-				// Set a timer now. x = previous remaining interval
-				unsigned int x = alarm(timeout);
+				// Set a timer now.
 				// If timed out at 3 seconds (timeout) we recieve SIGALRM.
-				// HOW DO WE KNOW WHICH PACKET TO RESEND AFTER SIGALRM IS TRIGGERED??
+				printf("Setting a timeout alarm\n");
+				alarm(timeout);	
 				int n = recvfrom(sockfd, ackBuffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen);
-				// Recieved from client. Reset timer 
-				alarm(0);
 				if (n < 0) {
 					printf("%s: recvfrom error\n",progname);
-					exit(4);
+					if (errno == EINTR) {  // There was a timeout
+						printf("Timeout has triggered!\n");
+					} else {
+						exit(4);
+					}
+				} else {
+					printf("Recieved data from server. Clear timeout alarm.\n")
+					// Recieved from client. Reset timer 
+					alarm(0);
 				}
 				unsigned short *opCodePtrRcv = (unsigned short*) ackBuffer;
 				unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
@@ -487,6 +493,10 @@ int main(int argc, char *argv[]) {
 		exit(2);
 	       }
 
+cout << "Register the timeout handler." << endl;
+if (register_handler() != 0) {
+	printf("Failed to register timeout...\n");
+}
 /* We can now start the echo server's main loop. We only pass the  */
 /* local socket to dg_echo, as the client's data are included in   */
 /* all received datagrams.                                         */
