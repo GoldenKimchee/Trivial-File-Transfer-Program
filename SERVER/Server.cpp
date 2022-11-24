@@ -115,6 +115,7 @@ void dg_echo(int sockfd) {
 
 // Wait till server has recieved the packet from client
 // Recieves char array into buffer variable
+// No timeout for the first packet to be recieved
 		n = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen);
 /* n holds now the number of received bytes, or a negative number  */
 /* to show an error condition. Notice how we use progname to label */
@@ -225,21 +226,29 @@ void dg_echo(int sockfd) {
 				// Set a timer now.
 				// If timed out at 3 seconds (timeout) we recieve SIGALRM.
 				printf("Setting a timeout alarm\n");
-				alarm(timeout);	
-				int n = recvfrom(sockfd, ackBuffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen);
-				if (n < 0) {
+				alarm(timeout);
+				while (recvfrom(sockfd, ackBuffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen) < 0) {
 					printf("%s: recvfrom error\n",progname);
 					if (errno == EINTR) {  // There was a timeout
 						printf("Timeout has triggered!\n");
-						// Must retransmit packet
+						// Retransmit packet
+						printf("Resending packet.\n");
+						if (sendto(sockfd, buffer, sizeof(buffer), 0, &pcli_addr, clilen) != sizeof(buffer)) {
+							printf("%s: sendto error on socket\n",progname);
+							exit(3);
+						}
+						// Set a timer now.
+						// If timed out at 3 seconds (timeout) we recieve SIGALRM.
+						printf("Setting a timeout alarm\n");
+						alarm(timeout);
 					} else {
 						exit(4);
 					}
-				} else {
-					printf("Recieved data from server. Clear timeout alarm.\n")
-					// Recieved from client. Reset timer 
-					alarm(0);
 				}
+				// Recieved from client. Reset timer 
+				printf("Recieved data from server. Clear timeout alarm.\n")
+				alarm(0);
+
 				unsigned short *opCodePtrRcv = (unsigned short*) ackBuffer;
 				unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
 				if (opCodeRcv == OP_ACK) {
@@ -266,12 +275,34 @@ void dg_echo(int sockfd) {
 
 		// Recieve last ACK packet
 		char rrqAckBuffer[MAX_BUFFER_SIZE];
-			bzero(rrqAckBuffer, sizeof(rrqAckBuffer));
-			int n2 = recvfrom(sockfd, rrqAckBuffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen);
-			if (n2 < 0) {
-				printf("%s: recvfrom error\n",progname);
+		bzero(rrqAckBuffer, sizeof(rrqAckBuffer));
+
+		// Set a timer now.
+		// If timed out at 3 seconds (timeout) we recieve SIGALRM.
+		printf("Setting a timeout alarm\n");
+		alarm(timeout);
+		while (recvfrom(sockfd, rrqAckBuffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen) < 0) {
+			printf("%s: recvfrom error\n",progname);
+			if (errno == EINTR) {  // There was a timeout
+				printf("Timeout has triggered!\n");
+				// Retransmit packet
+				printf("Resending packet.\n");
+				if (sendto(sockfd, buffer, sizeof(buffer), 0, &pcli_addr, clilen) != sizeof(buffer)) {
+					printf("%s: sendto error wrq\n",progname);
+					exit(4);
+				}
+				// Set a timer now.
+				// If timed out at 3 seconds (timeout) we recieve SIGALRM.
+				printf("Setting a timeout alarm\n");
+				alarm(timeout);
+			} else {
 				exit(4);
 			}
+		}
+		// Recieved from client. Reset timer 
+		printf("Recieved data from server. Clear timeout alarm.\n")
+		alarm(0);
+
 		unsigned short *rrqOpCodePtrRcv = (unsigned short*) rrqAckBuffer;
 		unsigned short rrqOpCodeRcv = ntohs(*rrqOpCodePtrRcv);
 		if (rrqOpCodeRcv == OP_ACK) {
@@ -355,12 +386,27 @@ void dg_echo(int sockfd) {
 		// Recieve DATA packet
 		char buffer[MAX_BUFFER_SIZE];
 		bzero(buffer, sizeof(buffer));
-		int n = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen);
 
-		if (n < 0) {
-			 printf("%s: recvfrom error\n",progname);
-			 exit(4);
+		// Set a timer now.
+		// If timed out at 3 seconds (timeout) we recieve SIGALRM.
+		printf("Setting a timeout alarm\n");
+		alarm(timeout);
+		while (recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen) < 0) {
+			printf("%s: recvfrom error\n",progname);
+			if (errno == EINTR) {  // There was a timeout
+				printf("Timeout has triggered!\n");
+				// Wait for another timeout cycle. Set a timer now.
+				// If timed out at (timeout) seconds we recieve SIGALRM.
+				printf("Setting a timeout alarm\n");
+				alarm(timeout);
+			} else {
+				exit(4);
+			}
 		}
+		// Recieved from client. Reset timer 
+		printf("Recieved data from server. Clear timeout alarm.\n")
+		alarm(0);
+		
 		//convert buffer to vector
 		vector<char> bufferVector(buffer, buffer + sizeof(buffer) / sizeof(buffer[0]));
 		//if data field is all 0
