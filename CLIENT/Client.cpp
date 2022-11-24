@@ -14,6 +14,7 @@
 #include <fstream>
 #include <vector>
 #include <algorithm>
+#include <cstdint>
 
 using namespace std;
 
@@ -25,6 +26,12 @@ const static unsigned short OP_DATA = 3;
 const static unsigned short OP_ACK = 4;
 const static unsigned short OP_ERROR = 5;
 const static int DATA_OFFSET = 4;
+
+/* Global variable to hold number of consecutive timeouts */
+int totalTimeouts = 0;
+
+/* Global variable to hold number of seconds till timeout */
+unsigned int timeout = 2;
 
 /* A pointer to the name of this program for error reporting.      */
 
@@ -40,6 +47,36 @@ unsigned short blockNumber = 1;
 /* Max length of data is 512 bytes, 2 bytes op code, 2 bytes block  */
 /* number. total 516 bytes.					    */
 const static int MAX_BUFFER_SIZE = 516;
+
+// Handler for the SIGALRM signal. Increments corresponding global variables.
+void handle_timeout(int signum) {
+	// Terminate the connection after 10 consecutive timeouts
+	if (totalTimeouts == 10) {
+		cout << "10 consecutive timeouts. Terminate program." << endl;
+		exit(7);
+	}
+	totalTimeouts += 1;  // Increment number of timeouts. Cannot have more than 10.
+	cout << "Timeout occured." << endl;
+}
+
+int register_handler() {
+	int rt_value = 0;
+	// Register the handler function	
+	rt_value = (intptr_t) signal(SIGALRM, handle_timeout);
+	if (rt_value == (intptr_t) SIG_ERR) {
+		printf("Can't register funcction handler.\n");
+		printf("signal() error: %s.\n", strerror(errno));
+		return -1;
+	}
+	// Disable the restart of system call on signal. 
+	// Otherwise OS will be stuck in the system call.
+	rt_value = siginterrupt(SIGALRM, 1);
+	if (rt_value == -1) {
+		printf("invalid sign number.\n");
+		return -1;
+	}
+	return 0;
+}
 
 int main(int argc, char *argv[]) {
 	int sockfd;
@@ -102,6 +139,12 @@ int main(int argc, char *argv[]) {
 		printf("%s: can't bind local address\n",progname);
 		exit(2);
 	}
+
+	cout << "Register the timeout handler." << endl;
+	if (register_handler() != 0) {
+		printf("Failed to register timeout...\n");
+	}
+
 	/* The user has initialized a read request on the client side.	*/
 	if (strcmp(argv[1], "-r") == 0) {
     	cout << "Start read request" << endl;
@@ -128,10 +171,26 @@ int main(int argc, char *argv[]) {
 		while (true) {
 		char buffer[MAX_BUFFER_SIZE];
 		bzero(buffer, sizeof(buffer));
-		int n = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, NULL, NULL);
-		if (n < 0) {
-			 printf("%s: recvfrom error\n",progname);
-			 exit(4);
+		while (true) {
+			cout << "Setting a timeout alarm" << endl;
+			alarm(3);
+			cout << "Waiting to recieve data from server" << endl;
+			int n = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, NULL, NULL);
+			if (n < 0) {
+				printf("%s: recvfrom error\n",progname);
+				if(errno == EINTR) {
+					handle_timeout(errno);
+					alarm(0);
+			 	}
+				else {
+					exit(4);
+				}
+			}
+			else {
+				cout << "Recieved data from server. Clear timeout alarm" << endl;
+				alarm(0);
+				break;
+			}
 		}
 		//convert buffer to vector
 		vector<char> bufferVector(buffer, buffer + sizeof(buffer) / sizeof(buffer[0]));
@@ -247,10 +306,26 @@ int main(int argc, char *argv[]) {
 		/* number. 							*/
 		char ackBuffer[MAX_BUFFER_SIZE];
 		bzero(ackBuffer, sizeof(ackBuffer));
-		int n = recvfrom(sockfd, ackBuffer, MAXLINE, 0, NULL, NULL);
-		if (n < 0) {
-			printf("%s: recvfrom error\n",progname);
-			exit(4);
+		while (true) {
+			cout << "Setting a timeout alarm" << endl;
+			alarm(3);
+			cout << "Waiting to recieve data from server" << endl;
+			int n = recvfrom(sockfd, ackBuffer, MAX_BUFFER_SIZE, 0, NULL, NULL);
+			if (n < 0) {
+				printf("%s: recvfrom error\n",progname);
+				if(errno == EINTR) {
+					handle_timeout(errno);
+					alarm(0);
+			 	}
+				else {
+					exit(4);
+				}
+			}
+			else {
+				cout << "Recieved data from server. Clear timeout alarm" << endl;
+				alarm(0);
+				break;
+			}
 		}
 		unsigned short *opCodePtrRcv = (unsigned short*) ackBuffer;
 		unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
@@ -308,11 +383,27 @@ int main(int argc, char *argv[]) {
 
 			char ackBuffer[MAX_BUFFER_SIZE];
 			bzero(ackBuffer, sizeof(ackBuffer));
+		while (true) {
+			cout << "Setting a timeout alarm" << endl;
+			alarm(3);
+			cout << "Waiting to recieve data from server" << endl;
 			int n = recvfrom(sockfd, ackBuffer, MAX_BUFFER_SIZE, 0, NULL, NULL);
 			if (n < 0) {
 				printf("%s: recvfrom error\n",progname);
-				exit(4);
+				if(errno == EINTR) {
+					handle_timeout(errno);
+					alarm(0);
+			 	}
+				else {
+					exit(4);
+				}
 			}
+			else {
+				cout << "Recieved data from server. Clear timeout alarm" << endl;
+				alarm(0);
+				break;
+			}
+		}
 			unsigned short *opCodePtrRcv = (unsigned short*) ackBuffer;
 			unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
 			if (opCodeRcv == OP_ACK) {
@@ -336,12 +427,28 @@ int main(int argc, char *argv[]) {
 		}
 
 		char wrqAckBuffer[MAX_BUFFER_SIZE];
-			bzero(wrqAckBuffer, sizeof(wrqAckBuffer));
-			int n2 = recvfrom(sockfd, wrqAckBuffer, MAXLINE, 0, NULL, NULL);
+		bzero(wrqAckBuffer, sizeof(wrqAckBuffer));
+		while (true) {
+			cout << "Setting a timeout alarm" << endl;
+			alarm(3);
+			cout << "Waiting to recieve data from server" << endl;
+			int n2 = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, NULL, NULL);
 			if (n2 < 0) {
 				printf("%s: recvfrom error\n",progname);
-				exit(4);
+				if(errno == EINTR) {
+					handle_timeout(errno);
+					alarm(0);
+			 	}
+				else {
+					exit(4);
+				}
 			}
+			else {
+				cout << "Recieved data from server. Clear timeout alarm" << endl;
+				alarm(0);
+				break;
+			}
+		}
 		unsigned short *wrqOpCodePtrRcv = (unsigned short*) wrqAckBuffer;
 		unsigned short wrqOpCodeRcv = ntohs(*wrqOpCodePtrRcv);
 		if (wrqOpCodeRcv == OP_ACK) {
