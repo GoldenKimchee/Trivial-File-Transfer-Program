@@ -171,27 +171,26 @@ int main(int argc, char *argv[]) {
 		while (true) {
 		char buffer[MAX_BUFFER_SIZE];
 		bzero(buffer, sizeof(buffer));
-		while (true) {
-			cout << "Setting a timeout alarm" << endl;
-			alarm(3);
-			cout << "Waiting to recieve data from server" << endl;
-			int n = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, NULL, NULL);
-			if (n < 0) {
-				printf("%s: recvfrom error\n",progname);
-				if(errno == EINTR) {
-					handle_timeout(errno);
-					alarm(0);
-			 	}
-				else {
-					exit(4);
+		cout << "Setting a timeout alarm" << endl;
+		alarm(3);
+		while (recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, NULL, NULL) < 0 ) {
+			printf("%s: recvfrom error\n",progname);
+			if(errno == EINTR) {
+				printf("Timeout has triggered!\n");
+				printf("Resending packet.\n");
+				if (sendto(sockfd, rrqBuffer, sizeof(rrqBuffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != sizeof(rrqBuffer)) {
+					printf("%s: sendto error on socket\n",progname);
+					exit(3);
 				}
+				printf("Setting a timeout alarm\n");
+				alarm(timeout);
 			}
 			else {
-				cout << "Recieved data from server. Clear timeout alarm" << endl;
-				alarm(0);
-				break;
+				exit(4);
 			}
 		}
+		printf("Recieved data from server. Clear timeout alarm.\n");
+		alarm(0);
 		//convert buffer to vector
 		vector<char> bufferVector(buffer, buffer + sizeof(buffer) / sizeof(buffer[0]));
 		//if data field is all 0
@@ -306,27 +305,26 @@ int main(int argc, char *argv[]) {
 		/* number. 							*/
 		char ackBuffer[MAX_BUFFER_SIZE];
 		bzero(ackBuffer, sizeof(ackBuffer));
-		while (true) {
-			cout << "Setting a timeout alarm" << endl;
-			alarm(3);
-			cout << "Waiting to recieve data from server" << endl;
-			int n = recvfrom(sockfd, ackBuffer, MAX_BUFFER_SIZE, 0, NULL, NULL);
-			if (n < 0) {
-				printf("%s: recvfrom error\n",progname);
-				if(errno == EINTR) {
-					handle_timeout(errno);
-					alarm(0);
-			 	}
-				else {
-					exit(4);
+		cout << "Setting a timeout alarm" << endl;
+		alarm(3);
+		while (recvfrom(sockfd, ackBuffer, MAX_BUFFER_SIZE, 0, NULL, NULL) < 0 ) {
+			printf("%s: recvfrom error\n",progname);
+			if(errno == EINTR) {
+				printf("Timeout has triggered!\n");
+				printf("Resending packet.\n");
+				if (sendto(sockfd, wrqBuffer, sizeof(wrqBuffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != sizeof(wrqBuffer)) {
+					printf("%s: sendto error on socket\n",progname);
+					exit(3);
 				}
+				printf("Setting a timeout alarm\n");
+				alarm(timeout);
 			}
 			else {
-				cout << "Recieved data from server. Clear timeout alarm" << endl;
-				alarm(0);
-				break;
+				exit(4);
 			}
 		}
+		printf("Recieved data from server. Clear timeout alarm.\n");
+		alarm(0);
 		unsigned short *opCodePtrRcv = (unsigned short*) ackBuffer;
 		unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
 		if (opCodeRcv == OP_ACK) {
@@ -383,27 +381,26 @@ int main(int argc, char *argv[]) {
 
 			char ackBuffer[MAX_BUFFER_SIZE];
 			bzero(ackBuffer, sizeof(ackBuffer));
-		while (true) {
-			cout << "Setting a timeout alarm" << endl;
-			alarm(3);
-			cout << "Waiting to recieve data from server" << endl;
-			int n = recvfrom(sockfd, ackBuffer, MAX_BUFFER_SIZE, 0, NULL, NULL);
-			if (n < 0) {
-				printf("%s: recvfrom error\n",progname);
-				if(errno == EINTR) {
-					handle_timeout(errno);
-					alarm(0);
-			 	}
-				else {
-					exit(4);
+		cout << "Setting a timeout alarm" << endl;
+		alarm(3);
+		while (recvfrom(sockfd, ackBuffer, MAX_BUFFER_SIZE, 0, NULL, NULL) < 0 ) {
+			printf("%s: recvfrom error\n",progname);
+			if(errno == EINTR) {
+				printf("Timeout has triggered!\n");
+				printf("Resending packet.\n");
+				if (sendto(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != sizeof(buffer)) {
+					printf("%s: sendto error on socket\n",progname);
+					exit(3);
 				}
+				printf("Setting a timeout alarm\n");
+				alarm(timeout);
 			}
 			else {
-				cout << "Recieved data from server. Clear timeout alarm" << endl;
-				alarm(0);
-				break;
+				exit(4);
 			}
 		}
+		printf("Recieved data from server. Clear timeout alarm.\n");
+		alarm(0);
 			unsigned short *opCodePtrRcv = (unsigned short*) ackBuffer;
 			unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
 			if (opCodeRcv == OP_ACK) {
@@ -428,27 +425,26 @@ int main(int argc, char *argv[]) {
 
 		char wrqAckBuffer[MAX_BUFFER_SIZE];
 		bzero(wrqAckBuffer, sizeof(wrqAckBuffer));
-		while (true) {
-			cout << "Setting a timeout alarm" << endl;
-			alarm(3);
-			cout << "Waiting to recieve data from server" << endl;
-			int n2 = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, NULL, NULL);
-			if (n2 < 0) {
-				printf("%s: recvfrom error\n",progname);
-				if(errno == EINTR) {
-					handle_timeout(errno);
-					alarm(0);
-			 	}
-				else {
-					exit(4);
+		cout << "Setting a timeout alarm" << endl;
+		alarm(3);
+		while (recvfrom(sockfd, wrqAckBuffer, MAX_BUFFER_SIZE, 0, NULL, NULL) < 0 ) {
+			printf("%s: recvfrom error\n",progname);
+			if(errno == EINTR) {
+				printf("Timeout has triggered!\n");
+				printf("Resending packet.\n");
+				if (sendto(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != sizeof(buffer)) {
+					printf("%s: sendto error on socket\n",progname);
+					exit(3);
 				}
+				printf("Setting a timeout alarm\n");
+				alarm(timeout);
 			}
 			else {
-				cout << "Recieved data from server. Clear timeout alarm" << endl;
-				alarm(0);
-				break;
+				exit(4);
 			}
 		}
+		printf("Recieved data from server. Clear timeout alarm.\n");
+		alarm(0);
 		unsigned short *wrqOpCodePtrRcv = (unsigned short*) wrqAckBuffer;
 		unsigned short wrqOpCodeRcv = ntohs(*wrqOpCodePtrRcv);
 		if (wrqOpCodeRcv == OP_ACK) {
