@@ -65,15 +65,15 @@ void handler(int signum) {
 int register_handler() {
 	int rt_value = 0;
 	// Register the handler function
-	rt_value = (int) signal(SIGALRM, handle_timeout);
-	if (rt_value == (int) SIG_ERR) {
+	rt_value = (intptr_t) signal(SIGALRM, handler);
+	if (rt_value == (intptr_t) SIG_ERR) {
 		printf("Can't register funcction handler.\n");
 		printf("signal() error: %s.\n", strerror(errno));
 		return -1;
 	}
 	// Disable the restart of system call on signal. 
 	// Otherwise OS will be stuck in the system call.
-	rt_value = siginterrupt(SIGARLM, 1);
+	rt_value = siginterrupt(SIGALRM, 1);
 	if (rt_value == -1) {
 		printf("invalid sign number.\n");
 		return -1;
@@ -246,7 +246,7 @@ void dg_echo(int sockfd) {
 					}
 				}
 				// Recieved from client. Reset timer 
-				printf("Recieved data from server. Clear timeout alarm.\n")
+				printf("Recieved data from server. Clear timeout alarm.\n");
 				alarm(0);
 
 				unsigned short *opCodePtrRcv = (unsigned short*) ackBuffer;
@@ -300,7 +300,7 @@ void dg_echo(int sockfd) {
 			}
 		}
 		// Recieved from client. Reset timer 
-		printf("Recieved data from server. Clear timeout alarm.\n")
+		printf("Recieved data from server. Clear timeout alarm.\n");
 		alarm(0);
 
 		unsigned short *rrqOpCodePtrRcv = (unsigned short*) rrqAckBuffer;
@@ -404,7 +404,7 @@ void dg_echo(int sockfd) {
 			}
 		}
 		// Recieved from client. Reset timer 
-		printf("Recieved data from server. Clear timeout alarm.\n")
+		printf("Recieved data from server. Clear timeout alarm.\n");
 		alarm(0);
 		
 		//convert buffer to vector
