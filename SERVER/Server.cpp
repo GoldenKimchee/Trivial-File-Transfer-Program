@@ -18,6 +18,7 @@
 #include <vector>
 #include <algorithm>
 #include <filesystem>
+#include <cstdint>
 
 using namespace std;
 
@@ -213,7 +214,7 @@ void *dg_echo(void *args) {
 					}
 				}
 				// Recieved from client. Reset timer 
-				printf("Recieved data from server. Clear timeout alarm.\n");
+				printf("Recieved data from client. Clear timeout alarm.\n");
 				alarm(0);
 
 				unsigned short *opCodePtrRcv = (unsigned short*) ackBuffer;
@@ -267,7 +268,7 @@ void *dg_echo(void *args) {
 			}
 		}
 		// Recieved from client. Reset timer 
-		printf("Recieved data from server. Clear timeout alarm.\n");
+		printf("Recieved data from client. Clear timeout alarm.\n");
 		alarm(0);
 
 		unsigned short *rrqOpCodePtrRcv = (unsigned short*) rrqAckBuffer;
@@ -371,7 +372,7 @@ void *dg_echo(void *args) {
 			}
 		}
 		// Recieved from client. Reset timer 
-		printf("Recieved data from server. Clear timeout alarm.\n");
+		printf("Recieved data from client. Clear timeout alarm.\n");
 		alarm(0);
 		
 		//convert buffer to vector
