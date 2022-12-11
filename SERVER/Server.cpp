@@ -214,7 +214,11 @@ void *dg_echo(void *args) {
 					}
 				}
 				// Recieved from client. Reset timer 
+<<<<<<< HEAD
 				printf("Recieved data from client. Clear timeout alarm.\n");
+=======
+				printf("Recieved data from server. Clear timeout alarm.\n");
+>>>>>>> bbd460d001577d6bb22db319b47faaf77178f624
 				alarm(0);
 
 				unsigned short *opCodePtrRcv = (unsigned short*) ackBuffer;
@@ -268,7 +272,15 @@ void *dg_echo(void *args) {
 			}
 		}
 		// Recieved from client. Reset timer 
+<<<<<<< HEAD
+<<<<<<< HEAD
 		printf("Recieved data from client. Clear timeout alarm.\n");
+=======
+		printf("Recieved data from server. Clear timeout alarm.\n");
+>>>>>>> bbd460d001577d6bb22db319b47faaf77178f624
+=======
+		printf("Recieved data from server. Clear timeout alarm.\n");
+>>>>>>> bbd460d001577d6bb22db319b47faaf77178f624
 		alarm(0);
 
 		unsigned short *rrqOpCodePtrRcv = (unsigned short*) rrqAckBuffer;
@@ -372,7 +384,15 @@ void *dg_echo(void *args) {
 			}
 		}
 		// Recieved from client. Reset timer 
+<<<<<<< HEAD
+<<<<<<< HEAD
 		printf("Recieved data from client. Clear timeout alarm.\n");
+=======
+		printf("Recieved data from server. Clear timeout alarm.\n");
+>>>>>>> bbd460d001577d6bb22db319b47faaf77178f624
+=======
+		printf("Recieved data from server. Clear timeout alarm.\n");
+>>>>>>> bbd460d001577d6bb22db319b47faaf77178f624
 		alarm(0);
 		
 		//convert buffer to vector
