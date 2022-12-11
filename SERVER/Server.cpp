@@ -6,7 +6,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <pthread.h>
 #include <string>
 #include <iostream>
 #include <fstream>
@@ -31,9 +30,6 @@ const static unsigned short OP_ACK = 4;
 const static unsigned short OP_ERROR = 5;
 const static int DATA_OFFSET = 4;
 char *progname;
-
-// Reorganize our code so each thread (client) just call one method
-// Server should accept client request to connect even after connecting just earlier
 
 /* Global variable to hold block number */
 unsigned short blockNumber = 0;
@@ -88,10 +84,47 @@ int register_handler() {
 
 /* The dg_echo function receives data from the already initialized */
 /* socket sockfd and returns them to the sender.                   */
-// args = int sockfd, int n, int clilen, char[] buffer, struct sock_addr pcli_addr
-void *dg_echo(void *args) {
-// Make the function from here to the rest of dg_echo a separate method
-// so that each client thread can call it
+
+void dg_echo(int sockfd) {
+/* struct sockaddr is a general purpose data structure that holds  */
+/* information about a socket that can use a variety of protocols. */
+/* Here, we use Internet family protocols and UDP datagram ports.  */
+/* This structure receives the client's address whenever a         */
+/* datagram arrives, so it needs no initialization.                */
+	
+	struct sockaddr pcli_addr;
+	
+/* Temporary variables, counters and buffers.                      */
+
+	int    n, clilen;
+	char buffer[MAX_BUFFER_SIZE];
+	bzero(buffer, sizeof(buffer));
+
+/* Main echo server loop. Note that it never terminates, as there  */
+/* is no way for UDP to know when the data are finished.           */
+
+	for ( ; ; ) {
+
+/* Initialize the maximum size of the structure holding the        */
+/* client's address.                                               */
+
+		clilen = sizeof(struct sockaddr);
+
+/* Receive data on socket sockfd, up to a maximum of MAXSIZE - 1   */
+/* bytes, and store them in mesg. The sender's address is stored   */
+/* in pcli_addr and the structure's size is stored in clilen.      */
+
+// Wait till server has recieved the packet from client
+// Recieves char array into buffer variable
+// No timeout for the first packet to be recieved
+		n = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen);
+/* n holds now the number of received bytes, or a negative number  */
+/* to show an error condition. Notice how we use progname to label */
+/* the source of the error.                                        */
+		if (n < 0) {
+			printf("%s: recvfrom error\n",progname);
+			exit(3);
+		}
 		unsigned short *opCodePtr = (unsigned short*) buffer;
 		unsigned short opCodeRcv = ntohs(*opCodePtr);
 		// if conditionals checking OP code to decide how to process remaining buffer array
@@ -214,11 +247,7 @@ void *dg_echo(void *args) {
 					}
 				}
 				// Recieved from client. Reset timer 
-<<<<<<< HEAD
 				printf("Recieved data from client. Clear timeout alarm.\n");
-=======
-				printf("Recieved data from server. Clear timeout alarm.\n");
->>>>>>> bbd460d001577d6bb22db319b47faaf77178f624
 				alarm(0);
 
 				unsigned short *opCodePtrRcv = (unsigned short*) ackBuffer;
@@ -272,15 +301,7 @@ void *dg_echo(void *args) {
 			}
 		}
 		// Recieved from client. Reset timer 
-<<<<<<< HEAD
-<<<<<<< HEAD
 		printf("Recieved data from client. Clear timeout alarm.\n");
-=======
-		printf("Recieved data from server. Clear timeout alarm.\n");
->>>>>>> bbd460d001577d6bb22db319b47faaf77178f624
-=======
-		printf("Recieved data from server. Clear timeout alarm.\n");
->>>>>>> bbd460d001577d6bb22db319b47faaf77178f624
 		alarm(0);
 
 		unsigned short *rrqOpCodePtrRcv = (unsigned short*) rrqAckBuffer;
@@ -384,15 +405,7 @@ void *dg_echo(void *args) {
 			}
 		}
 		// Recieved from client. Reset timer 
-<<<<<<< HEAD
-<<<<<<< HEAD
 		printf("Recieved data from client. Clear timeout alarm.\n");
-=======
-		printf("Recieved data from server. Clear timeout alarm.\n");
->>>>>>> bbd460d001577d6bb22db319b47faaf77178f624
-=======
-		printf("Recieved data from server. Clear timeout alarm.\n");
->>>>>>> bbd460d001577d6bb22db319b47faaf77178f624
 		alarm(0);
 		
 		//convert buffer to vector
@@ -453,9 +466,8 @@ void *dg_echo(void *args) {
 	cout << "Server is done processing write request for client." << endl;
 	blockNumber = 0;
 		
-	}	
-	pthread_exit(NULL);
-	return NULL;
+		}	
+	}
 }
 
 /* Main driver program. Initializes server's socket and calls the  */
@@ -538,60 +550,13 @@ cout << "Register the timeout handler." << endl;
 if (register_handler() != 0) {
 	printf("Failed to register timeout...\n");
 }
+/* We can now start the echo server's main loop. We only pass the  */
+/* local socket to dg_echo, as the client's data are included in   */
+/* all received datagrams.                                         */
 
-/* struct sockaddr is a general purpose data structure that holds  */
-/* information about a socket that can use a variety of protocols. */
-/* Here, we use Internet family protocols and UDP datagram ports.  */
-/* This structure receives the client's address whenever a         */
-/* datagram arrives, so it needs no initialization.                */
-	
-	struct sockaddr pcli_addr;
-	int    n, clilen;
-	char buffer[MAX_BUFFER_SIZE];
+	dg_echo(sockfd);
 
-/* Main echo server loop. Note that it never terminates, as there  */
-/* is no way for UDP to know when the data are finished.           */
-
-	for ( ; ; ) {
-
-/* Initialize the maximum size of the structure holding the        */
-/* client's address.                                               */
-	clilen = sizeof(struct sockaddr);
-	bzero(buffer, sizeof(buffer));
-
-/* Receive data on socket sockfd, up to a maximum of MAXSIZE - 1   */
-/* bytes, and store them in mesg. The sender's address is stored   */
-/* in pcli_addr and the structure's size is stored in clilen.      */
-
-// Wait till server has recieved the packet from client
-// Recieves char array into buffer variable
-// No timeout for the first packet to be recieved
-		n = recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, &pcli_addr, (unsigned int*) &clilen);
-/* n holds now the number of received bytes, or a negative number  */
-/* to show an error condition. Notice how we use progname to label */
-/* the source of the error.                                        */
-		if (n < 0) {
-			printf("%s: recvfrom error\n",progname);
-			exit(3);
-		}
-
-	// For each client connection make a thread
-	pthread_t client_thread;
-	struct arg_struct args;
-	args.arg1 = sockfd;
-	args.arg2 = n;
-	args.arg3 = clilen;
-	args.arg4 = buffer;
-	args.arg5 = pcli_addr;
-	int ret;
-	ret = pthread_create(&client_thread, NULL, &dg_echo, (void*) &args);
-	if (ret != 0) {
-		printf("Error: pthread_create() failed\n");
-		exit(EXIT_FAILURE);
-	}
-
-	pthread_exit(NULL);
 /* The echo function in this example never terminates, so this     */
 /* code should be unreachable.                                     */
-	}
+
 }
