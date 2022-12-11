@@ -12,9 +12,11 @@ just type
 to spawn the s.out (server executable) and
 the c.out (client executable).
 
+
 2. Execute server first, specify port number
 
 `./SERVER/s.out -p 51917`
+
 
 3. Execute client next, specify write/read, file name, port number, etc.
 
@@ -23,11 +25,19 @@ the c.out (client executable).
 *Illustration of directory tree below*
 
 >/TFTP-Program
+
 >|--/CLIENT
+
 >    |--Client.cpp
+
 >    |--client.txt
+
 >|--/SERVER
+
 >    |--Server.cpp
+
 >    |--server.txt
+
 >|--Makefile
+
 >|--README.md`
