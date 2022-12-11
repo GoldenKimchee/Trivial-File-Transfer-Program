@@ -41,3 +41,6 @@ the c.out (client executable).
 >|--Makefile
 
 >|--README.md`
+
+*Note: the directory tree above looks weird but its actually formatted properly
+in the actual README.md file*
