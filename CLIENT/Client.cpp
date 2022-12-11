@@ -168,11 +168,12 @@ int main(int argc, char *argv[]) {
 		/* Recieve data block by creating buffer and parsing it     */
 		/* as per TFTP protocol rfc1350 where a data block has an   */
 		/* opcode (3), a block number, and data.   		    */
+		ofstream output(argv[2]);
 		while (true) {
 		char buffer[MAX_BUFFER_SIZE];
 		bzero(buffer, sizeof(buffer));
 		cout << "Setting a timeout alarm" << endl;
-		alarm(3);
+		alarm(timeout);
 		while (recvfrom(sockfd, buffer, MAX_BUFFER_SIZE, 0, NULL, NULL) < 0 ) {
 			printf("%s: recvfrom error\n",progname);
 			if(errno == EINTR) {
@@ -190,6 +191,7 @@ int main(int argc, char *argv[]) {
 			}
 		}
 		printf("Recieved data from server. Clear timeout alarm.\n");
+
 		alarm(0);
 		//convert buffer to vector
 		vector<char> bufferVector(buffer, buffer + sizeof(buffer) / sizeof(buffer[0]));
@@ -205,7 +207,6 @@ int main(int argc, char *argv[]) {
 		unsigned short *opCodePtrRcv = (unsigned short*) buffer;
 		unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
 		if (opCodeRcv == OP_DATA) {
-			ofstream output(argv[2]);
 			opCodePtrRcv++;
 			unsigned short *blockNumPtr = opCodePtrRcv;
 			blockNumber = ntohs(*blockNumPtr);
@@ -306,7 +307,7 @@ int main(int argc, char *argv[]) {
 		char ackBuffer[MAX_BUFFER_SIZE];
 		bzero(ackBuffer, sizeof(ackBuffer));
 		cout << "Setting a timeout alarm" << endl;
-		alarm(3);
+		alarm(timeout);
 		while (recvfrom(sockfd, ackBuffer, MAX_BUFFER_SIZE, 0, NULL, NULL) < 0 ) {
 			printf("%s: recvfrom error\n",progname);
 			if(errno == EINTR) {
@@ -382,7 +383,7 @@ int main(int argc, char *argv[]) {
 			char ackBuffer[MAX_BUFFER_SIZE];
 			bzero(ackBuffer, sizeof(ackBuffer));
 		cout << "Setting a timeout alarm" << endl;
-		alarm(3);
+		alarm(timeout);
 		while (recvfrom(sockfd, ackBuffer, MAX_BUFFER_SIZE, 0, NULL, NULL) < 0 ) {
 			printf("%s: recvfrom error\n",progname);
 			if(errno == EINTR) {
@@ -426,7 +427,7 @@ int main(int argc, char *argv[]) {
 		char wrqAckBuffer[MAX_BUFFER_SIZE];
 		bzero(wrqAckBuffer, sizeof(wrqAckBuffer));
 		cout << "Setting a timeout alarm" << endl;
-		alarm(3);
+		alarm(timeout);
 		while (recvfrom(sockfd, wrqAckBuffer, MAX_BUFFER_SIZE, 0, NULL, NULL) < 0 ) {
 			printf("%s: recvfrom error\n",progname);
 			if(errno == EINTR) {
