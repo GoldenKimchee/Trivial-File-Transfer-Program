@@ -168,6 +168,7 @@ int main(int argc, char *argv[]) {
 		/* Recieve data block by creating buffer and parsing it     */
 		/* as per TFTP protocol rfc1350 where a data block has an   */
 		/* opcode (3), a block number, and data.   		    */
+		ofstream output(argv[2]);
 		while (true) {
 		char buffer[MAX_BUFFER_SIZE];
 		bzero(buffer, sizeof(buffer));
@@ -205,7 +206,6 @@ int main(int argc, char *argv[]) {
 		unsigned short *opCodePtrRcv = (unsigned short*) buffer;
 		unsigned short opCodeRcv = ntohs(*opCodePtrRcv);
 		if (opCodeRcv == OP_DATA) {
-			ofstream output(argv[2]);
 			opCodePtrRcv++;
 			unsigned short *blockNumPtr = opCodePtrRcv;
 			blockNumber = ntohs(*blockNumPtr);
